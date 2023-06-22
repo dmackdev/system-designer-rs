@@ -1,9 +1,9 @@
-use bevy::prelude::*;
+use bevy::{math::Vec3Swizzles, prelude::*};
 use bevy_mod_picking::prelude::{
     Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton, Up,
 };
 use bevy_prototype_lyon::{
-    prelude::{Fill, GeometryBuilder, ShapeBundle},
+    prelude::{Fill, GeometryBuilder, ShapeBundle, Stroke},
     shapes,
 };
 
@@ -130,6 +130,8 @@ fn drag_end_node(
 
 fn pointer_up_node(
     mut events: EventReader<ListenedEvent<Up>>,
+    mut commands: Commands,
+    nodes_query: Query<&Transform>,
     node_connect_state: Res<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
@@ -139,6 +141,17 @@ fn pointer_up_node(
 
                 if start_node != end_node {
                     println!("FOUND CONNECTION");
+                    commands.spawn((
+                        ShapeBundle {
+                            path: GeometryBuilder::build_as(&shapes::Line(
+                                nodes_query.get(start_node).unwrap().translation.xy(),
+                                nodes_query.get(end_node).unwrap().translation.xy(),
+                            )),
+                            transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
+                            ..default()
+                        },
+                        Stroke::new(Color::YELLOW, 2.0),
+                    ));
                 }
             }
         }
