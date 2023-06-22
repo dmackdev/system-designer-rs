@@ -1,14 +1,21 @@
-use bevy::prelude::{in_state, App, Commands, EventWriter, IntoSystemConfig, Plugin};
+use bevy::prelude::{
+    in_state, App, Commands, EventWriter, IntoSystemConfig, IntoSystemSetConfig, Plugin, SystemSet,
+};
 use bevy_egui::{egui, EguiContexts};
 
 use crate::{events::AddComponentEvent, game_state::GameState};
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct GameUiSystemSet;
 
 pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup)
-            .add_system(ui_example_system.run_if(in_state(GameState::Playing)));
+        app.add_startup_system(setup);
+
+        app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Playing)));
+        app.add_system(ui_example_system.in_set(GameUiSystemSet));
     }
 }
 
