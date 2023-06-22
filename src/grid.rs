@@ -116,11 +116,8 @@ fn drag_end_node(
         match drag_event.button {
             PointerButton::Primary => {
                 let mut transform = nodes_query.get_mut(drag_event.target).unwrap();
-                transform.translation = snap_to_grid(
-                    Vec2::new(transform.translation.x, transform.translation.y),
-                    GRID_SIZE,
-                )
-                .extend(layer::SYSTEM_COMPONENTS);
+                transform.translation = snap_to_grid(transform.translation.xy(), GRID_SIZE)
+                    .extend(layer::SYSTEM_COMPONENTS);
             }
             PointerButton::Secondary => {
                 node_connect_state.start = None;
