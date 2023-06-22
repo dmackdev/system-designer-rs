@@ -16,7 +16,7 @@ pub struct GridPlugin;
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
-            .add_system(add_system_component);
+            .add_system(add_system_component.run_if(on_event::<AddComponentEvent>()));
     }
 }
 
