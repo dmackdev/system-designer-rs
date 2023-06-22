@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::{Drag, DragEnd, OnPointer};
 use bevy_prototype_lyon::{
     prelude::{Fill, GeometryBuilder, ShapeBundle},
     shapes,
@@ -43,11 +44,27 @@ fn add_system_component(
     mut add_component_events: EventReader<AddComponentEvent>,
 ) {
     for _ in add_component_events.iter() {
-        commands.spawn(SpriteBundle {
-            texture: asset_server.load("textures/system_components/server.png"),
-            transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
-                .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
-            ..default()
-        });
+        commands.spawn((
+            SpriteBundle {
+                texture: asset_server.load("textures/system_components/server.png"),
+                transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
+                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
+                ..default()
+            },
+            OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
+                transform.translation += Vec3::from((drag.delta, 0.0));
+            }),
+            OnPointer::<DragEnd>::target_component_mut::<Transform>(|_, transform| {
+                transform.translation = snap_to_grid(
+                    Vec2::new(transform.translation.x, transform.translation.y),
+                    GRID_SIZE,
+                )
+                .extend(layer::SYSTEM_COMPONENTS);
+            }),
+        ));
     }
+}
+
+fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
+    (position / grid_size).round() * grid_size
 }

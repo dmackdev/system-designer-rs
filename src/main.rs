@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_prototype_lyon::prelude::*;
 use events::AddComponentEvent;
 use game_state::GameState;
@@ -37,7 +38,8 @@ fn main() {
         .add_plugin(ShapePlugin)
         .add_plugin(EguiPlugin)
         .add_plugin(GameUiPlugin)
-        .add_plugin(GridPlugin);
+        .add_plugin(GridPlugin)
+        .add_plugins(DefaultPickingPlugins);
 
     app.add_startup_system(setup);
 
