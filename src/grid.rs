@@ -3,7 +3,7 @@ use bevy_mod_picking::prelude::{
     Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton, Up,
 };
 use bevy_prototype_lyon::{
-    prelude::{Fill, GeometryBuilder, ShapeBundle, Stroke},
+    prelude::{Fill, GeometryBuilder, Path, ShapeBundle, ShapePath, Stroke},
     shapes,
 };
 
@@ -15,6 +15,9 @@ const SYSTEM_COMPONENT_SCALE: f32 = ((GRID_SIZE + GRID_VERTEX_RADIUS) * 2.0) / 1
 
 pub struct GridPlugin;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DragEventSet;
+
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NodeConnectState>();
@@ -23,11 +26,19 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<DragEnd>>();
         app.add_event::<ListenedEvent<Up>>();
 
+        app.configure_set(DragEventSet.run_if(on_event::<ListenedEvent<Drag>>()));
+
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
             .add_system(add_system_component.run_if(on_event::<AddComponentEvent>()))
-            .add_system(drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()))
-            .add_system(drag_node.run_if(on_event::<ListenedEvent<Drag>>()))
-            .add_system(drag_end_node.run_if(on_event::<ListenedEvent<DragEnd>>()))
+            .add_system(drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()));
+
+        app.add_systems(
+            (drag_node, update_connection_paths)
+                .chain()
+                .in_set(DragEventSet),
+        );
+
+        app.add_system(drag_end_node.run_if(on_event::<ListenedEvent<DragEnd>>()))
             .add_system(
                 pointer_up_node
                     .run_if(on_event::<ListenedEvent<Up>>())
@@ -72,6 +83,9 @@ fn add_system_component(
                     .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
                 ..default()
             },
+            Node {
+                connections: vec![],
+            },
             OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
             OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
@@ -84,6 +98,11 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
 }
 
+#[derive(Component)]
+struct Node {
+    connections: Vec<(Entity, Entity)>,
+}
+
 fn drag_node(
     mut drag_event: EventReader<ListenedEvent<Drag>>,
     mut nodes_query: Query<&mut Transform>,
@@ -92,6 +111,29 @@ fn drag_node(
         if matches!(drag_event.button, PointerButton::Primary) {
             let mut transform = nodes_query.get_mut(drag_event.target).unwrap();
             transform.translation += Vec3::from((drag_event.delta, 0.0));
+        }
+    }
+}
+
+fn update_connection_paths(
+    mut drag_event: EventReader<ListenedEvent<Drag>>,
+    nodes_query: Query<(Ref<Transform>, &Node)>,
+    mut path_query: Query<&mut Path>,
+) {
+    for drag_event in drag_event.iter() {
+        let (transform, node) = nodes_query.get(drag_event.target).unwrap();
+
+        if transform.is_changed() {
+            for (other_node, path) in node.connections.iter() {
+                let mut path = path_query.get_mut(*path).unwrap();
+
+                let polygon = shapes::Line(
+                    transform.translation.xy(),
+                    nodes_query.get(*other_node).unwrap().0.translation.xy(),
+                );
+
+                *path = ShapePath::build_as(&polygon);
+            }
         }
     }
 }
@@ -131,7 +173,7 @@ fn drag_end_node(
 fn pointer_up_node(
     mut events: EventReader<ListenedEvent<Up>>,
     mut commands: Commands,
-    nodes_query: Query<&Transform>,
+    mut nodes_query: Query<(&Transform, &mut Node)>,
     node_connect_state: Res<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
@@ -141,17 +183,30 @@ fn pointer_up_node(
 
                 if start_node != end_node {
                     println!("FOUND CONNECTION");
-                    commands.spawn((
-                        ShapeBundle {
-                            path: GeometryBuilder::build_as(&shapes::Line(
-                                nodes_query.get(start_node).unwrap().translation.xy(),
-                                nodes_query.get(end_node).unwrap().translation.xy(),
-                            )),
-                            transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
-                            ..default()
-                        },
-                        Stroke::new(Color::YELLOW, 2.0),
-                    ));
+                    let mut nodes = nodes_query.get_many_mut([start_node, end_node]).unwrap();
+
+                    let connection_path_entity = commands
+                        .spawn((
+                            ShapeBundle {
+                                path: GeometryBuilder::build_as(&shapes::Line(
+                                    nodes[0].0.translation.xy(),
+                                    nodes[1].0.translation.xy(),
+                                )),
+                                transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
+                                ..default()
+                            },
+                            Stroke::new(Color::YELLOW, 2.0),
+                        ))
+                        .id();
+
+                    nodes[0]
+                        .1
+                        .connections
+                        .push((end_node, connection_path_entity));
+                    nodes[1]
+                        .1
+                        .connections
+                        .push((start_node, connection_path_entity));
                 }
             }
         }
