@@ -18,6 +18,9 @@ pub struct GridPlugin;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct DragEventSet;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DragEndEventSet;
+
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NodeConnectState>();
@@ -27,23 +30,32 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<Up>>();
 
         app.configure_set(DragEventSet.run_if(on_event::<ListenedEvent<Drag>>()));
+        app.configure_set(DragEndEventSet.run_if(on_event::<ListenedEvent<DragEnd>>()));
 
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
             .add_system(add_system_component.run_if(on_event::<AddComponentEvent>()))
             .add_system(drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()));
 
         app.add_systems(
-            (drag_node, update_connection_paths)
+            (drag_node, update_connection_paths::<ListenedEvent<Drag>>)
                 .chain()
                 .in_set(DragEventSet),
         );
 
-        app.add_system(drag_end_node.run_if(on_event::<ListenedEvent<DragEnd>>()))
-            .add_system(
-                pointer_up_node
-                    .run_if(on_event::<ListenedEvent<Up>>())
-                    .before(drag_end_node),
-            );
+        app.add_systems(
+            (
+                drag_end_node,
+                update_connection_paths::<ListenedEvent<DragEnd>>,
+            )
+                .chain()
+                .in_set(DragEndEventSet),
+        );
+
+        app.add_system(
+            pointer_up_node
+                .run_if(on_event::<ListenedEvent<Up>>())
+                .before(drag_end_node),
+        );
     }
 }
 
@@ -115,13 +127,29 @@ fn drag_node(
     }
 }
 
-fn update_connection_paths(
-    mut drag_event: EventReader<ListenedEvent<Drag>>,
+trait PointerEventOnNode {
+    fn target(&self) -> Entity;
+}
+
+impl PointerEventOnNode for ListenedEvent<Drag> {
+    fn target(&self) -> Entity {
+        self.target
+    }
+}
+
+impl PointerEventOnNode for ListenedEvent<DragEnd> {
+    fn target(&self) -> Entity {
+        self.target
+    }
+}
+
+fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
+    mut drag_event: EventReader<E>,
     nodes_query: Query<(Ref<Transform>, &Node)>,
     mut path_query: Query<&mut Path>,
 ) {
     for drag_event in drag_event.iter() {
-        let (transform, node) = nodes_query.get(drag_event.target).unwrap();
+        let (transform, node) = nodes_query.get(drag_event.target()).unwrap();
 
         if transform.is_changed() {
             for (other_node, path) in node.connections.iter() {
