@@ -156,7 +156,7 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
     nodes_query: Query<(Ref<Transform>, &Node)>,
-    mut path_query: Query<&mut Path>,
+    mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
 ) {
@@ -192,6 +192,9 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
 #[derive(Component)]
 struct LineInProgress;
 
+#[derive(Component)]
+struct NodeConnectionLine;
+
 fn drag_start_node(
     mut commands: Commands,
     nodes_query: Query<&Transform, With<Node>>,
@@ -214,6 +217,7 @@ fn drag_start_node(
                     },
                     Stroke::new(Color::YELLOW, 2.0),
                     LineInProgress,
+                    NodeConnectionLine,
                 ))
                 .id();
 
