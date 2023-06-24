@@ -1,4 +1,4 @@
-use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy::{math::Vec3Swizzles, prelude::*, utils::HashMap};
 use bevy_mod_picking::prelude::{
     Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton, Up,
 };
@@ -97,7 +97,7 @@ fn add_system_component(
                 ..default()
             },
             Node {
-                connections: vec![],
+                connections: HashMap::new(),
             },
             OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
@@ -113,7 +113,8 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
 
 #[derive(Component)]
 struct Node {
-    connections: Vec<(Entity, Entity)>,
+    // other node entity -> connection line entity
+    connections: HashMap<Entity, Entity>,
 }
 
 fn drag_node(
@@ -255,26 +256,36 @@ fn drag_end_node(
 fn pointer_up_node(
     mut commands: Commands,
     mut events: EventReader<ListenedEvent<Up>>,
-    mut nodes_query: Query<(&Transform, &mut Node)>,
+    mut nodes_query: Query<&mut Node>,
     mut node_connect_state: ResMut<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
         if matches!(pointer_up_event.button, PointerButton::Secondary) {
-            if let Some(start_node) = node_connect_state.start_node_entity {
-                let end_node = pointer_up_event.target;
+            if let Some(start_node_entity) = node_connect_state.start_node_entity {
+                let end_node_entity = pointer_up_event.target;
 
-                if start_node != end_node {
+                if start_node_entity != end_node_entity {
+                    let mut nodes = nodes_query
+                        .get_many_mut([start_node_entity, end_node_entity])
+                        .unwrap();
+
+                    if nodes[0].connections.contains_key(&end_node_entity) {
+                        println!("ALREADY MADE CONNETION");
+                        continue;
+                    }
+
                     println!("FOUND CONNECTION");
-                    let mut nodes = nodes_query.get_many_mut([start_node, end_node]).unwrap();
 
-                    nodes[0].1.connections.push((
-                        end_node,
-                        node_connect_state.line_in_progress_entity.unwrap(),
-                    ));
-                    nodes[1].1.connections.push((
-                        start_node,
-                        node_connect_state.line_in_progress_entity.unwrap(),
-                    ));
+                    let line_in_progress_entity =
+                        node_connect_state.line_in_progress_entity.unwrap();
+
+                    nodes[0]
+                        .connections
+                        .insert(end_node_entity, line_in_progress_entity);
+
+                    nodes[1]
+                        .connections
+                        .insert(start_node_entity, line_in_progress_entity);
 
                     commands
                         .entity(node_connect_state.line_in_progress_entity.unwrap())
