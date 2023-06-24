@@ -79,8 +79,8 @@ fn spawn_grid(mut commands: Commands) {
 
 #[derive(Default, Resource)]
 struct NodeConnectState {
-    start: Option<Entity>,
-    active_path: Option<Entity>,
+    start_node_entity: Option<Entity>,
+    line_in_progress_entity: Option<Entity>,
 }
 
 fn add_system_component(
@@ -163,13 +163,13 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     for drag_event in drag_event.iter() {
         let (transform, node) = nodes_query.get(drag_event.target()).unwrap();
 
-        if let Some(active_path) = node_connect_state.active_path {
+        if let Some(line_in_progress_entity) = node_connect_state.line_in_progress_entity {
             let (camera, camera_transform) = camera_query.single();
             let mouse_pos = camera
                 .viewport_to_world_2d(camera_transform, drag_event.pointer_position())
                 .unwrap();
 
-            if let Ok(mut path) = path_query.get_mut(active_path) {
+            if let Ok(mut path) = path_query.get_mut(line_in_progress_entity) {
                 let polygon = shapes::Line(transform.translation.xy(), mouse_pos);
 
                 *path = ShapePath::build_as(&polygon);
@@ -190,7 +190,7 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
 }
 
 #[derive(Component)]
-struct ActivePath;
+struct LineInProgress;
 
 fn drag_start_node(
     mut commands: Commands,
@@ -200,7 +200,7 @@ fn drag_start_node(
 ) {
     for drag_event in drag_event.iter() {
         if matches!(drag_event.button, PointerButton::Secondary) {
-            node_connect_state.start = Some(drag_event.target);
+            node_connect_state.start_node_entity = Some(drag_event.target);
 
             let connection_path_entity = commands
                 .spawn((
@@ -213,11 +213,11 @@ fn drag_start_node(
                         ..default()
                     },
                     Stroke::new(Color::YELLOW, 2.0),
-                    ActivePath,
+                    LineInProgress,
                 ))
                 .id();
 
-            node_connect_state.active_path = Some(connection_path_entity);
+            node_connect_state.line_in_progress_entity = Some(connection_path_entity);
         }
     }
 }
@@ -236,11 +236,11 @@ fn drag_end_node(
                     .extend(layer::SYSTEM_COMPONENTS);
             }
             PointerButton::Secondary => {
-                if let Some(e) = node_connect_state.active_path.take() {
+                if let Some(e) = node_connect_state.line_in_progress_entity.take() {
                     println!("REMOVING ACTIVE PATH");
                     commands.entity(e).despawn_recursive();
                 }
-                node_connect_state.start = None;
+                node_connect_state.start_node_entity = None;
                 println!("CLEARED NODE CONNECT STATE");
             }
             _ => {}
@@ -256,27 +256,27 @@ fn pointer_up_node(
 ) {
     for pointer_up_event in events.iter() {
         if matches!(pointer_up_event.button, PointerButton::Secondary) {
-            if let Some(start_node) = node_connect_state.start {
+            if let Some(start_node) = node_connect_state.start_node_entity {
                 let end_node = pointer_up_event.target;
 
                 if start_node != end_node {
                     println!("FOUND CONNECTION");
                     let mut nodes = nodes_query.get_many_mut([start_node, end_node]).unwrap();
 
-                    nodes[0]
-                        .1
-                        .connections
-                        .push((end_node, node_connect_state.active_path.unwrap()));
-                    nodes[1]
-                        .1
-                        .connections
-                        .push((start_node, node_connect_state.active_path.unwrap()));
+                    nodes[0].1.connections.push((
+                        end_node,
+                        node_connect_state.line_in_progress_entity.unwrap(),
+                    ));
+                    nodes[1].1.connections.push((
+                        start_node,
+                        node_connect_state.line_in_progress_entity.unwrap(),
+                    ));
 
                     commands
-                        .entity(node_connect_state.active_path.unwrap())
-                        .remove::<ActivePath>();
+                        .entity(node_connect_state.line_in_progress_entity.unwrap())
+                        .remove::<LineInProgress>();
 
-                    node_connect_state.active_path = None;
+                    node_connect_state.line_in_progress_entity = None;
                 }
             }
         }
