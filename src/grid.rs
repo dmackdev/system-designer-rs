@@ -156,7 +156,7 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
 
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
-    nodes_query: Query<(Ref<Transform>, &Node)>,
+    nodes_query: Query<(&Transform, &Node)>,
     mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
