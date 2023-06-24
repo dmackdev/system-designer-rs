@@ -80,6 +80,7 @@ fn spawn_grid(mut commands: Commands) {
 #[derive(Default, Resource)]
 struct NodeConnectState {
     start: Option<Entity>,
+    active_path: Option<Entity>,
 }
 
 fn add_system_component(
@@ -129,11 +130,16 @@ fn drag_node(
 
 trait PointerEventOnNode {
     fn target(&self) -> Entity;
+    fn pointer_position(&self) -> Vec2;
 }
 
 impl PointerEventOnNode for ListenedEvent<Drag> {
     fn target(&self) -> Entity {
         self.target
+    }
+
+    fn pointer_position(&self) -> Vec2 {
+        self.pointer_location.position
     }
 }
 
@@ -141,17 +147,34 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
     fn target(&self) -> Entity {
         self.target
     }
+
+    fn pointer_position(&self) -> Vec2 {
+        self.pointer_location.position
+    }
 }
 
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
     nodes_query: Query<(Ref<Transform>, &Node)>,
     mut path_query: Query<&mut Path>,
+    node_connect_state: Res<NodeConnectState>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
 ) {
     for drag_event in drag_event.iter() {
         let (transform, node) = nodes_query.get(drag_event.target()).unwrap();
 
-        if transform.is_changed() {
+        if let Some(active_path) = node_connect_state.active_path {
+            let (camera, camera_transform) = camera_query.single();
+            let mouse_pos = camera
+                .viewport_to_world_2d(camera_transform, drag_event.pointer_position())
+                .unwrap();
+
+            if let Ok(mut path) = path_query.get_mut(active_path) {
+                let polygon = shapes::Line(transform.translation.xy(), mouse_pos);
+
+                *path = ShapePath::build_as(&polygon);
+            }
+        } else {
             for (other_node, path) in node.connections.iter() {
                 let mut path = path_query.get_mut(*path).unwrap();
 
@@ -166,18 +189,41 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     }
 }
 
+#[derive(Component)]
+struct ActivePath;
+
 fn drag_start_node(
+    mut commands: Commands,
+    nodes_query: Query<&Transform, With<Node>>,
     mut drag_event: EventReader<ListenedEvent<DragStart>>,
     mut node_connect_state: ResMut<NodeConnectState>,
 ) {
     for drag_event in drag_event.iter() {
         if matches!(drag_event.button, PointerButton::Secondary) {
             node_connect_state.start = Some(drag_event.target);
+
+            let connection_path_entity = commands
+                .spawn((
+                    ShapeBundle {
+                        path: GeometryBuilder::build_as(&shapes::Line(
+                            nodes_query.get(drag_event.target).unwrap().translation.xy(),
+                            nodes_query.get(drag_event.target).unwrap().translation.xy(),
+                        )),
+                        transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
+                        ..default()
+                    },
+                    Stroke::new(Color::YELLOW, 2.0),
+                    ActivePath,
+                ))
+                .id();
+
+            node_connect_state.active_path = Some(connection_path_entity);
         }
     }
 }
 
 fn drag_end_node(
+    mut commands: Commands,
     mut drag_event: EventReader<ListenedEvent<DragEnd>>,
     mut nodes_query: Query<&mut Transform>,
     mut node_connect_state: ResMut<NodeConnectState>,
@@ -190,6 +236,10 @@ fn drag_end_node(
                     .extend(layer::SYSTEM_COMPONENTS);
             }
             PointerButton::Secondary => {
+                if let Some(e) = node_connect_state.active_path.take() {
+                    println!("REMOVING ACTIVE PATH");
+                    commands.entity(e).despawn_recursive();
+                }
                 node_connect_state.start = None;
                 println!("CLEARED NODE CONNECT STATE");
             }
@@ -199,10 +249,10 @@ fn drag_end_node(
 }
 
 fn pointer_up_node(
-    mut events: EventReader<ListenedEvent<Up>>,
     mut commands: Commands,
+    mut events: EventReader<ListenedEvent<Up>>,
     mut nodes_query: Query<(&Transform, &mut Node)>,
-    node_connect_state: Res<NodeConnectState>,
+    mut node_connect_state: ResMut<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
         if matches!(pointer_up_event.button, PointerButton::Secondary) {
@@ -213,28 +263,20 @@ fn pointer_up_node(
                     println!("FOUND CONNECTION");
                     let mut nodes = nodes_query.get_many_mut([start_node, end_node]).unwrap();
 
-                    let connection_path_entity = commands
-                        .spawn((
-                            ShapeBundle {
-                                path: GeometryBuilder::build_as(&shapes::Line(
-                                    nodes[0].0.translation.xy(),
-                                    nodes[1].0.translation.xy(),
-                                )),
-                                transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
-                                ..default()
-                            },
-                            Stroke::new(Color::YELLOW, 2.0),
-                        ))
-                        .id();
-
                     nodes[0]
                         .1
                         .connections
-                        .push((end_node, connection_path_entity));
+                        .push((end_node, node_connect_state.active_path.unwrap()));
                     nodes[1]
                         .1
                         .connections
-                        .push((start_node, connection_path_entity));
+                        .push((start_node, node_connect_state.active_path.unwrap()));
+
+                    commands
+                        .entity(node_connect_state.active_path.unwrap())
+                        .remove::<ActivePath>();
+
+                    node_connect_state.active_path = None;
                 }
             }
         }
