@@ -1,3 +1,3 @@
-pub enum AddComponentEvent {
-    Server,
-}
+use crate::node::NodeType;
+
+pub struct AddComponentEvent(pub NodeType);

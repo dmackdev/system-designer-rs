@@ -12,7 +12,11 @@ use bevy_prototype_lyon::{
 };
 
 use crate::{
-    color, events::AddComponentEvent, game_state::GameState, layer, node::NodeConnections,
+    color,
+    events::AddComponentEvent,
+    game_state::GameState,
+    layer,
+    node::{NodeConnections, SystemNode},
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -97,14 +101,20 @@ fn add_system_component(
     asset_server: Res<AssetServer>,
     mut add_component_events: EventReader<AddComponentEvent>,
 ) {
-    for _ in add_component_events.iter() {
+    for event in add_component_events.into_iter() {
+        let node_type = &event.0;
+
+        let texture_path = node_type.get_texture_path();
+
         commands.spawn((
             SpriteBundle {
-                texture: asset_server.load("textures/system_components/server.png"),
+                texture: asset_server.load(texture_path),
                 transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
                     .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
                 ..default()
             },
+            SystemNode,
+            node_type.clone(),
             NodeConnections::new(),
             OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),

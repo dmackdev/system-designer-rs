@@ -26,8 +26,12 @@ fn render_game_ui(
     egui::SidePanel::left("side_panel")
         .resizable(false)
         .show(ctx, |ui| {
+            if ui.button("Add Client").clicked() {
+                add_component_events.send(AddComponentEvent(crate::node::NodeType::Client));
+            }
+
             if ui.button("Add Server").clicked() {
-                add_component_events.send(AddComponentEvent::Server);
+                add_component_events.send(AddComponentEvent(crate::node::NodeType::Server));
             }
         });
 }

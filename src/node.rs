@@ -3,6 +3,26 @@ use std::collections::{hash_map::Iter, HashMap};
 use bevy::prelude::{Component, Entity};
 
 #[derive(Component)]
+pub struct SystemNode;
+
+#[derive(Component, Clone)]
+pub enum NodeType {
+    Client,
+    Server,
+}
+
+impl NodeType {
+    pub fn get_texture_path(&self) -> String {
+        let t = match self {
+            NodeType::Client => "client",
+            NodeType::Server => "server",
+        };
+
+        format!("textures/system_components/{t}.png")
+    }
+}
+
+#[derive(Component)]
 pub struct NodeConnections {
     // other node entity -> connection line entity
     connections: HashMap<Entity, Entity>,
