@@ -13,6 +13,7 @@ mod game_state;
 mod game_ui;
 mod grid;
 mod layer;
+mod node;
 
 fn main() {
     let mut app = App::new();

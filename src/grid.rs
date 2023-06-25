@@ -1,4 +1,4 @@
-use bevy::{math::Vec3Swizzles, prelude::*, utils::HashMap};
+use bevy::{math::Vec3Swizzles, prelude::*};
 use bevy_mod_picking::prelude::{
     Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton, Up,
 };
@@ -7,7 +7,9 @@ use bevy_prototype_lyon::{
     shapes,
 };
 
-use crate::{color, events::AddComponentEvent, game_state::GameState, layer};
+use crate::{
+    color, events::AddComponentEvent, game_state::GameState, layer, node::NodeConnections,
+};
 
 const GRID_SIZE: f32 = 50.0;
 const GRID_VERTEX_RADIUS: f32 = GRID_SIZE / 20.0;
@@ -96,9 +98,7 @@ fn add_system_component(
                     .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
                 ..default()
             },
-            Node {
-                connections: HashMap::new(),
-            },
+            NodeConnections::new(),
             OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
             OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
@@ -109,12 +109,6 @@ fn add_system_component(
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
-}
-
-#[derive(Component)]
-struct Node {
-    // other node entity -> connection line entity
-    connections: HashMap<Entity, Entity>,
 }
 
 fn drag_node(
@@ -156,7 +150,7 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
 
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
-    nodes_query: Query<(Ref<Transform>, &Node)>,
+    nodes_query: Query<(Ref<Transform>, &NodeConnections)>,
     mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
@@ -176,7 +170,7 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
                 *path = ShapePath::build_as(&polygon);
             }
         } else if transform.is_changed() {
-            for (other_node, path) in node.connections.iter() {
+            for (other_node, path) in node.iter() {
                 let mut path = path_query.get_mut(*path).unwrap();
 
                 let polygon = shapes::Line(
@@ -198,7 +192,7 @@ struct NodeConnectionLine;
 
 fn drag_start_node(
     mut commands: Commands,
-    nodes_query: Query<&Transform, With<Node>>,
+    nodes_query: Query<&Transform, With<NodeConnections>>,
     mut drag_event: EventReader<ListenedEvent<DragStart>>,
     mut node_connect_state: ResMut<NodeConnectState>,
 ) {
@@ -256,7 +250,7 @@ fn drag_end_node(
 fn pointer_up_node(
     mut commands: Commands,
     mut events: EventReader<ListenedEvent<Up>>,
-    mut nodes_query: Query<&mut Node>,
+    mut nodes_query: Query<&mut NodeConnections>,
     mut node_connect_state: ResMut<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
@@ -269,7 +263,7 @@ fn pointer_up_node(
                         .get_many_mut([start_node_entity, end_node_entity])
                         .unwrap();
 
-                    if nodes[0].connections.contains_key(&end_node_entity) {
+                    if nodes[0].is_connected_to(end_node_entity) {
                         println!("ALREADY MADE CONNETION");
                         continue;
                     }
@@ -279,13 +273,8 @@ fn pointer_up_node(
                     let line_in_progress_entity =
                         node_connect_state.line_in_progress_entity.unwrap();
 
-                    nodes[0]
-                        .connections
-                        .insert(end_node_entity, line_in_progress_entity);
-
-                    nodes[1]
-                        .connections
-                        .insert(start_node_entity, line_in_progress_entity);
+                    nodes[0].add_connection(end_node_entity, line_in_progress_entity);
+                    nodes[1].add_connection(start_node_entity, line_in_progress_entity);
 
                     commands
                         .entity(node_connect_state.line_in_progress_entity.unwrap())
