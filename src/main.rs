@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-use bevy_mod_picking::DefaultPickingPlugins;
+use bevy_mod_picking::{prelude::RaycastPickCamera, DefaultPickingPlugins};
 use bevy_prototype_lyon::prelude::*;
 use events::AddComponentEvent;
 use game_state::GameState;
@@ -48,5 +48,5 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2dBundle::default(), RaycastPickCamera::default()));
 }

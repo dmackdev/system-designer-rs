@@ -1,6 +1,10 @@
 use bevy::{math::Vec3Swizzles, prelude::*};
-use bevy_mod_picking::prelude::{
-    Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton, Up,
+use bevy_mod_picking::{
+    prelude::{
+        Click, Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton,
+        RaycastPickTarget, Up,
+    },
+    PickableBundle,
 };
 use bevy_prototype_lyon::{
     prelude::{Fill, GeometryBuilder, Path, ShapeBundle, ShapePath, Stroke},
@@ -30,6 +34,7 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<DragStart>>();
         app.add_event::<ListenedEvent<DragEnd>>();
         app.add_event::<ListenedEvent<Up>>();
+        app.add_event::<ListenedEvent<Click>>();
 
         app.configure_set(DragEventSet.run_if(on_event::<ListenedEvent<Drag>>()));
         app.configure_set(DragEndEventSet.run_if(on_event::<ListenedEvent<DragEnd>>()));
@@ -58,6 +63,8 @@ impl Plugin for GridPlugin {
                 .run_if(on_event::<ListenedEvent<Up>>())
                 .before(drag_end_node),
         );
+
+        app.add_system(remove_connection.run_if(on_event::<ListenedEvent<Click>>()));
     }
 }
 
@@ -185,9 +192,6 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
 }
 
 #[derive(Component)]
-struct LineInProgress;
-
-#[derive(Component)]
 struct NodeConnectionLine;
 
 fn drag_start_node(
@@ -210,8 +214,7 @@ fn drag_start_node(
                         transform: Transform::from_xyz(0.0, 0.0, layer::CONNECTIONS),
                         ..default()
                     },
-                    Stroke::new(Color::YELLOW, 2.0),
-                    LineInProgress,
+                    Stroke::new(Color::YELLOW, 5.0),
                     NodeConnectionLine,
                 ))
                 .id();
@@ -247,6 +250,9 @@ fn drag_end_node(
     }
 }
 
+#[derive(Component)]
+struct ConnectedNodeConnectionLine(Entity, Entity);
+
 fn pointer_up_node(
     mut commands: Commands,
     mut events: EventReader<ListenedEvent<Up>>,
@@ -278,11 +284,42 @@ fn pointer_up_node(
 
                     commands
                         .entity(node_connect_state.line_in_progress_entity.unwrap())
-                        .remove::<LineInProgress>();
+                        .insert(ConnectedNodeConnectionLine(
+                            start_node_entity,
+                            end_node_entity,
+                        ))
+                        .insert(OnPointer::<Click>::send_event::<ListenedEvent<Click>>())
+                        .insert(PickableBundle::default())
+                        .insert(RaycastPickTarget::default());
 
                     node_connect_state.line_in_progress_entity = None;
                 }
             }
+        }
+    }
+}
+
+fn remove_connection(
+    mut commands: Commands,
+    mut events: EventReader<ListenedEvent<Click>>,
+    connections: Query<&ConnectedNodeConnectionLine>,
+    mut nodes: Query<&mut NodeConnections>,
+) {
+    for event in events.iter() {
+        if matches!(event.button, PointerButton::Secondary) {
+            let connection = connections.get(event.target).unwrap();
+
+            nodes
+                .get_mut(connection.0)
+                .unwrap()
+                .remove_connection(connection.1);
+
+            nodes
+                .get_mut(connection.1)
+                .unwrap()
+                .remove_connection(connection.0);
+
+            commands.entity(event.target).despawn_recursive();
         }
     }
 }

@@ -23,6 +23,10 @@ impl NodeConnections {
         self.connections.insert(other_node, line);
     }
 
+    pub fn remove_connection(&mut self, other_node: Entity) {
+        self.connections.remove(&other_node);
+    }
+
     pub fn iter(&self) -> Iter<Entity, Entity> {
         self.connections.iter()
     }
