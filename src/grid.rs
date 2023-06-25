@@ -122,7 +122,7 @@ fn drag_node(
     mut nodes_query: Query<&mut Transform>,
 ) {
     for drag_event in drag_event.iter() {
-        if matches!(drag_event.button, PointerButton::Primary) {
+        if matches!(drag_event.button, PointerButton::Primary) && drag_event.delta != Vec2::ZERO {
             let mut transform = nodes_query.get_mut(drag_event.target).unwrap();
             transform.translation += Vec3::from((drag_event.delta, 0.0));
         }
@@ -156,7 +156,7 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
 
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
-    nodes_query: Query<(&Transform, &Node)>,
+    nodes_query: Query<(Ref<Transform>, &Node)>,
     mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
@@ -175,7 +175,7 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
 
                 *path = ShapePath::build_as(&polygon);
             }
-        } else {
+        } else if transform.is_changed() {
             for (other_node, path) in node.connections.iter() {
                 let mut path = path_query.get_mut(*path).unwrap();
 
