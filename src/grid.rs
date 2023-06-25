@@ -150,7 +150,7 @@ impl PointerEventOnNode for ListenedEvent<DragEnd> {
 
 fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
     mut drag_event: EventReader<E>,
-    nodes_query: Query<(Ref<Transform>, &NodeConnections)>,
+    nodes_query: Query<(&Transform, &NodeConnections)>,
     mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
@@ -169,7 +169,7 @@ fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
 
                 *path = ShapePath::build_as(&polygon);
             }
-        } else if transform.is_changed() {
+        } else {
             for (other_node, path) in node.iter() {
                 let mut path = path_query.get_mut(*path).unwrap();
 
