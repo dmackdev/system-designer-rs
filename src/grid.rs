@@ -275,11 +275,11 @@ fn pointer_up_node(
                 let end_node_entity = pointer_up_event.target;
 
                 if start_node_entity != end_node_entity {
-                    let mut nodes = nodes_query
+                    let [mut start_node, mut end_node] = nodes_query
                         .get_many_mut([start_node_entity, end_node_entity])
                         .unwrap();
 
-                    if nodes[0].is_connected_to(end_node_entity) {
+                    if start_node.is_connected_to(end_node_entity) {
                         println!("ALREADY MADE CONNETION");
                         continue;
                     }
@@ -289,8 +289,8 @@ fn pointer_up_node(
                     let line_in_progress_entity =
                         node_connect_state.line_in_progress_entity.unwrap();
 
-                    nodes[0].add_connection(end_node_entity, line_in_progress_entity);
-                    nodes[1].add_connection(start_node_entity, line_in_progress_entity);
+                    start_node.add_connection(end_node_entity, line_in_progress_entity);
+                    end_node.add_connection(start_node_entity, line_in_progress_entity);
 
                     commands
                         .entity(node_connect_state.line_in_progress_entity.unwrap())
