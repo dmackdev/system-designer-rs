@@ -6,6 +6,7 @@ use bevy::prelude::{Bundle, Component, Entity};
 pub struct SystemNodeBundle {
     node: SystemNode,
     node_type: NodeType,
+    node_name: NodeName,
     node_connections: NodeConnections,
 }
 
@@ -14,6 +15,7 @@ impl SystemNodeBundle {
         Self {
             node: SystemNode,
             node_type,
+            node_name: NodeName::new(),
             node_connections: NodeConnections::new(),
         }
     }
@@ -39,6 +41,15 @@ impl NodeType {
     }
 }
 
+#[derive(Default, Component)]
+pub struct NodeName(String);
+
+impl NodeName {
+    fn new() -> Self {
+        Default::default()
+    }
+}
+
 #[derive(Component)]
 pub struct NodeConnections {
     // other node entity -> connection line entity
@@ -46,7 +57,7 @@ pub struct NodeConnections {
 }
 
 impl NodeConnections {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             connections: HashMap::new(),
         }
