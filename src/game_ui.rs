@@ -6,7 +6,7 @@ use bevy_egui::{egui, EguiContexts};
 use crate::{
     events::AddComponentEvent,
     game_state::GameState,
-    node::{NodeName, NodeType},
+    node::{ClientImpl, NodeName, NodeType},
 };
 
 use bevy::{input::common_conditions::input_toggle_active, prelude::*};
@@ -34,7 +34,7 @@ fn inspector_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
     game_ui_state: Res<GameUiState>,
-    mut nodes: Query<(&NodeType, &mut NodeName)>,
+    mut nodes: Query<(&mut NodeType, &mut NodeName)>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -45,7 +45,8 @@ fn inspector_ui(
                 ui.heading("Create Components");
 
                 if ui.button("Add Client").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Client));
+                    add_component_events
+                        .send(AddComponentEvent(NodeType::Client(ClientImpl::new())));
                 }
 
                 if ui.button("Add Server").clicked() {
@@ -64,20 +65,56 @@ fn inspector_ui(
                 ui.heading("Inspector");
 
                 if let Some(e) = game_ui_state.selected_node {
-                    let (node_type, mut node_name) = nodes.get_mut(e).unwrap();
+                    let (mut node_type, mut node_name) = nodes.get_mut(e).unwrap();
 
-                    ui.horizontal(|ui| {
-                        ui.label("Type:");
-                        ui.label(format!("{:?}", node_type));
-                    });
+                    node_name.ui(ui);
 
-                    ui.horizontal(|ui| {
-                        ui.label("Name:");
-                        ui.text_edit_singleline(&mut node_name.0);
-                    });
+                    ui.separator();
+
+                    node_type.ui(ui);
                 }
 
                 ui.allocate_space(ui.available_size());
             });
         });
+}
+
+trait View {
+    fn ui(&mut self, ui: &mut egui::Ui);
+}
+
+impl View for NodeName {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut self.0);
+        });
+    }
+}
+
+impl View for NodeType {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Type:");
+            ui.label(format!("{}", self));
+        });
+
+        match self {
+            NodeType::Client(client) => client.ui(ui),
+            NodeType::Server => {}
+        }
+    }
+}
+
+impl View for ClientImpl {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(
+            egui::TextEdit::multiline(&mut self.config)
+                .font(egui::TextStyle::Monospace) // for cursor height
+                .code_editor()
+                .desired_rows(10)
+                .lock_focus(true)
+                .desired_width(f32::INFINITY),
+        );
+    }
 }
