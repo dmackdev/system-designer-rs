@@ -45,11 +45,11 @@ fn inspector_ui(
                 ui.heading("Create Components");
 
                 if ui.button("Add Client").clicked() {
-                    add_component_events.send(AddComponentEvent(crate::node::NodeType::Client));
+                    add_component_events.send(AddComponentEvent(NodeType::Client));
                 }
 
                 if ui.button("Add Server").clicked() {
-                    add_component_events.send(AddComponentEvent(crate::node::NodeType::Server));
+                    add_component_events.send(AddComponentEvent(NodeType::Server));
                 }
 
                 ui.label("Press escape to toggle UI");
