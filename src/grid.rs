@@ -45,6 +45,9 @@ impl Plugin for GridPlugin {
         app.configure_set(DragEventSet.run_if(on_event::<ListenedEvent<Drag>>()));
         app.configure_set(DragEndEventSet.run_if(on_event::<ListenedEvent<DragEnd>>()));
 
+        // Appears to fix otherwise inconsistent selection updates with the egui backend.
+        app.add_system(node_deselection.after(CoreSet::First));
+
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
             .add_system(add_system_component.run_if(on_event::<AddComponentEvent>()))
             .add_system(drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()));
@@ -54,8 +57,6 @@ impl Plugin for GridPlugin {
                 .chain()
                 .in_set(DragEventSet),
         );
-
-        app.add_system(node_deselection.before(DragEndEventSet));
 
         app.add_systems(
             (
