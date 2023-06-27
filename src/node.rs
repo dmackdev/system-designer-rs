@@ -1,6 +1,23 @@
 use std::collections::{hash_map::Iter, HashMap};
 
-use bevy::prelude::{Component, Entity};
+use bevy::prelude::{Bundle, Component, Entity};
+
+#[derive(Bundle)]
+pub struct SystemNodeBundle {
+    node: SystemNode,
+    node_type: NodeType,
+    node_connections: NodeConnections,
+}
+
+impl SystemNodeBundle {
+    pub fn new(node_type: NodeType) -> Self {
+        Self {
+            node: SystemNode,
+            node_type,
+            node_connections: NodeConnections::new(),
+        }
+    }
+}
 
 #[derive(Component)]
 pub struct SystemNode;

@@ -18,7 +18,7 @@ use crate::{
     game_state::GameState,
     game_ui::GameUiState,
     layer,
-    node::{NodeConnections, SystemNode},
+    node::{NodeConnections, SystemNodeBundle},
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -117,9 +117,7 @@ fn add_system_component(
                     .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
                 ..default()
             },
-            SystemNode,
-            node_type.clone(),
-            NodeConnections::new(),
+            SystemNodeBundle::new(node_type.clone()),
             OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
             OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
