@@ -42,7 +42,7 @@ impl NodeType {
 }
 
 #[derive(Default, Component)]
-pub struct NodeName(String);
+pub struct NodeName(pub String);
 
 impl NodeName {
     fn new() -> Self {

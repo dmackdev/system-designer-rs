@@ -3,7 +3,11 @@ use bevy::prelude::{
 };
 use bevy_egui::{egui, EguiContexts};
 
-use crate::{events::AddComponentEvent, game_state::GameState, node::NodeType};
+use crate::{
+    events::AddComponentEvent,
+    game_state::GameState,
+    node::{NodeName, NodeType},
+};
 
 use bevy::{input::common_conditions::input_toggle_active, prelude::*};
 
@@ -30,7 +34,7 @@ fn inspector_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
     game_ui_state: Res<GameUiState>,
-    nodes: Query<&NodeType>,
+    mut nodes: Query<(&NodeType, &mut NodeName)>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -60,7 +64,17 @@ fn inspector_ui(
                 ui.heading("Inspector");
 
                 if let Some(e) = game_ui_state.selected_node {
-                    ui.label(format!("{:?}", nodes.get(e)));
+                    let (node_type, mut node_name) = nodes.get_mut(e).unwrap();
+
+                    ui.horizontal(|ui| {
+                        ui.label("Type:");
+                        ui.label(format!("{:?}", node_type));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut node_name.0);
+                    });
                 }
 
                 ui.allocate_space(ui.available_size());
