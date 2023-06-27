@@ -5,7 +5,7 @@ use bevy::prelude::{Component, Entity};
 #[derive(Component)]
 pub struct SystemNode;
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub enum NodeType {
     Client,
     Server,

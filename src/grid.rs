@@ -4,6 +4,7 @@ use bevy_mod_picking::{
         Click, Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton,
         RaycastPickTarget, Up,
     },
+    selection::PickSelection,
     PickableBundle,
 };
 use bevy_prototype_lyon::{
@@ -15,6 +16,7 @@ use crate::{
     color,
     events::AddComponentEvent,
     game_state::GameState,
+    game_ui::GameUiState,
     layer,
     node::{NodeConnections, SystemNode},
 };
@@ -52,6 +54,8 @@ impl Plugin for GridPlugin {
                 .chain()
                 .in_set(DragEventSet),
         );
+
+        app.add_system(node_deselection.before(DragEndEventSet));
 
         app.add_systems(
             (
@@ -120,6 +124,7 @@ fn add_system_component(
             OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
             OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
             OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
+            PickableBundle::default(),
         ));
     }
 }
@@ -239,10 +244,15 @@ fn drag_end_node(
     mut drag_event: EventReader<ListenedEvent<DragEnd>>,
     mut nodes_query: Query<&mut Transform>,
     mut node_connect_state: ResMut<NodeConnectState>,
+    mut game_ui_state: ResMut<GameUiState>,
 ) {
     for drag_event in drag_event.iter() {
         match drag_event.button {
             PointerButton::Primary => {
+                if drag_event.distance.length_squared() < 1.0 {
+                    game_ui_state.selected_node = Some(drag_event.target);
+                }
+
                 let mut transform = nodes_query.get_mut(drag_event.target).unwrap();
                 transform.translation = snap_to_grid(transform.translation.xy(), GRID_SIZE)
                     .extend(layer::SYSTEM_COMPONENTS);
@@ -331,5 +341,14 @@ fn remove_connection(
 
             commands.entity(event.target).despawn_recursive();
         }
+    }
+}
+
+fn node_deselection(
+    pick_selection_query: Query<(Entity, &PickSelection)>,
+    mut game_ui_state: ResMut<GameUiState>,
+) {
+    if pick_selection_query.iter().all(|(_, p)| !p.is_selected) {
+        game_ui_state.selected_node = None;
     }
 }
