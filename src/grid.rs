@@ -1,4 +1,4 @@
-use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_mod_picking::{
     prelude::{
         Click, Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton,
@@ -23,7 +23,10 @@ use crate::{
 
 const GRID_SIZE: f32 = 50.0;
 const GRID_VERTEX_RADIUS: f32 = GRID_SIZE / 20.0;
-const SYSTEM_COMPONENT_SCALE: f32 = ((GRID_SIZE + GRID_VERTEX_RADIUS) * 2.0) / 100.0;
+const SYSTEM_COMPONENT_NODE_MESH_SCALE: f32 = GRID_SIZE * 2.0;
+const SYSTEM_COMPONENT_SPRITE_SIZE: f32 = 100.0;
+const SYSTEM_COMPONENT_SPRITE_SCALE: f32 = ((GRID_SIZE + GRID_VERTEX_RADIUS) * 2.0)
+    / (SYSTEM_COMPONENT_SPRITE_SIZE * SYSTEM_COMPONENT_NODE_MESH_SCALE);
 
 pub struct GridPlugin;
 
@@ -45,7 +48,6 @@ impl Plugin for GridPlugin {
         app.configure_set(DragEventSet.run_if(on_event::<ListenedEvent<Drag>>()));
         app.configure_set(DragEndEventSet.run_if(on_event::<ListenedEvent<DragEnd>>()));
 
-        // Appears to fix otherwise inconsistent selection updates with the egui backend.
         app.add_system(node_deselection.after(CoreSet::First));
 
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
@@ -105,26 +107,39 @@ fn add_system_component(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut add_component_events: EventReader<AddComponentEvent>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for event in add_component_events.into_iter() {
         let node_type = &event.0;
 
         let texture_path = node_type.get_texture_path();
 
-        commands.spawn((
-            SpriteBundle {
-                texture: asset_server.load(texture_path),
-                transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
-                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_SCALE)),
-                ..default()
-            },
-            SystemNodeBundle::new(node_type.clone()),
-            OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
-            OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
-            OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
-            OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
-            PickableBundle::default(),
-        ));
+        commands
+            .spawn((
+                MaterialMesh2dBundle {
+                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                    transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
+                        .with_scale(Vec3::splat(SYSTEM_COMPONENT_NODE_MESH_SCALE)),
+                    material: materials.add(ColorMaterial::from(Color::NONE)),
+                    ..default()
+                },
+                SystemNodeBundle::new(node_type.clone()),
+                OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
+                OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
+                OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
+                OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
+                PickableBundle::default(),
+                RaycastPickTarget::default(),
+            ))
+            .with_children(|builder| {
+                builder.spawn(SpriteBundle {
+                    texture: asset_server.load(texture_path),
+                    transform: Transform::default()
+                        .with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
+                    ..default()
+                });
+            });
     }
 }
 

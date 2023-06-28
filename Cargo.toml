@@ -12,8 +12,6 @@ bevy_egui = "0.20"
 bevy_mod_picking = { version = "0.13.0", features = [
   "backend_egui",
   "backend_raycast",
-  "backend_bevy_ui",
-  "backend_sprite",
   "selection",
   "highlight",
 ], default-features = false }
