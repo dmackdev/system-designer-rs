@@ -6,6 +6,8 @@ use events::{AddComponentEvent, StartSimulationEvent};
 use game_state::{GameState, GameStatePlugin};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
+use message::{MessagePlugin, SendMessageEvent};
+use simulation::SimulationPlugin;
 
 mod color;
 mod events;
@@ -13,7 +15,9 @@ mod game_state;
 mod game_ui;
 mod grid;
 mod layer;
+mod message;
 mod node;
+mod simulation;
 
 fn main() {
     let mut app = App::new();
@@ -34,6 +38,7 @@ fn main() {
 
     app.add_event::<AddComponentEvent>();
     app.add_event::<StartSimulationEvent>();
+    app.add_event::<SendMessageEvent>();
     app.add_state::<GameState>();
 
     app.add_plugins(default)
@@ -42,6 +47,8 @@ fn main() {
         .add_plugin(GameUiPlugin)
         .add_plugin(GridPlugin)
         .add_plugin(GameStatePlugin)
+        .add_plugin(MessagePlugin)
+        .add_plugin(SimulationPlugin)
         .add_plugins(DefaultPickingPlugins);
 
     app.add_startup_system(setup);
