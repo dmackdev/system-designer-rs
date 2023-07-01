@@ -6,7 +6,7 @@ use bevy_egui::{egui, EguiContexts};
 use crate::{
     events::AddComponentEvent,
     game_state::GameState,
-    node::{ClientImpl, NodeName, NodeType},
+    node::{Client, NodeName, NodeType, Server},
 };
 
 use bevy::{input::common_conditions::input_toggle_active, prelude::*};
@@ -45,12 +45,11 @@ fn inspector_ui(
                 ui.heading("Create Components");
 
                 if ui.button("Add Client").clicked() {
-                    add_component_events
-                        .send(AddComponentEvent(NodeType::Client(ClientImpl::new())));
+                    add_component_events.send(AddComponentEvent(NodeType::Client(Client::new())));
                 }
 
                 if ui.button("Add Server").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Server));
+                    add_component_events.send(AddComponentEvent(NodeType::Server(Server::new())));
                 }
 
                 ui.label("Press escape to toggle UI");
@@ -101,12 +100,25 @@ impl View for NodeType {
 
         match self {
             NodeType::Client(client) => client.ui(ui),
-            NodeType::Server => {}
+            NodeType::Server(server) => server.ui(ui),
         }
     }
 }
 
-impl View for ClientImpl {
+impl View for Client {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(
+            egui::TextEdit::multiline(&mut self.config)
+                .font(egui::TextStyle::Monospace) // for cursor height
+                .code_editor()
+                .desired_rows(10)
+                .lock_focus(true)
+                .desired_width(f32::INFINITY),
+        );
+    }
+}
+
+impl View for Server {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(
             egui::TextEdit::multiline(&mut self.config)

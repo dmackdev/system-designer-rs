@@ -29,15 +29,15 @@ pub struct SystemNode;
 
 #[derive(Component, Clone, Debug)]
 pub enum NodeType {
-    Client(ClientImpl),
-    Server,
+    Client(Client),
+    Server(Server),
 }
 
 impl Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match self {
             NodeType::Client(_) => "Client",
-            NodeType::Server => "Server",
+            NodeType::Server(_) => "Server",
         };
         write!(f, "{}", s)
     }
@@ -47,7 +47,7 @@ impl NodeType {
     pub fn get_texture_path(&self) -> String {
         let t = match self {
             NodeType::Client(_) => "client",
-            NodeType::Server => "server",
+            NodeType::Server(_) => "server",
         };
 
         format!("textures/system_components/{t}.png")
@@ -55,11 +55,22 @@ impl NodeType {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct ClientImpl {
+pub struct Client {
     pub config: String,
 }
 
-impl ClientImpl {
+impl Client {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Server {
+    pub config: String,
+}
+
+impl Server {
     pub fn new() -> Self {
         Default::default()
     }
