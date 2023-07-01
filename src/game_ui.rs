@@ -4,7 +4,7 @@ use bevy::prelude::{
 use bevy_egui::{egui, EguiContexts};
 
 use crate::{
-    events::AddComponentEvent,
+    events::{AddComponentEvent, StartSimulationEvent},
     game_state::GameState,
     node::{Client, NodeName, NodeType, Server},
 };
@@ -19,7 +19,7 @@ pub struct GameUiPlugin;
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameUiState>();
-        app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Playing)));
+        app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Edit)));
 
         app.add_system(inspector_ui.run_if(input_toggle_active(true, KeyCode::Escape)));
     }
@@ -35,6 +35,7 @@ fn inspector_ui(
     mut add_component_events: EventWriter<AddComponentEvent>,
     game_ui_state: Res<GameUiState>,
     mut nodes: Query<(&mut NodeType, &mut NodeName)>,
+    mut start_sim: EventWriter<StartSimulationEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -42,7 +43,7 @@ fn inspector_ui(
         .default_width(200.0)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Create Components");
+                ui.heading("Components");
 
                 if ui.button("Add Client").clicked() {
                     add_component_events.send(AddComponentEvent(NodeType::Client(Client::new())));
@@ -52,7 +53,12 @@ fn inspector_ui(
                     add_component_events.send(AddComponentEvent(NodeType::Server(Server::new())));
                 }
 
-                ui.label("Press escape to toggle UI");
+                ui.heading("Simulation");
+
+                if ui.button("Execute").clicked() {
+                    start_sim.send(StartSimulationEvent);
+                }
+
                 ui.allocate_space(ui.available_size());
             });
         });

@@ -50,7 +50,7 @@ impl Plugin for GridPlugin {
 
         app.add_system(node_deselection.after(CoreSet::First));
 
-        app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Playing)))
+        app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Edit)))
             .add_system(add_system_component.run_if(on_event::<AddComponentEvent>()))
             .add_system(drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()));
 
