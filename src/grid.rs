@@ -4,7 +4,6 @@ use bevy_mod_picking::{
         Click, Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton,
         RaycastPickTarget, Up,
     },
-    selection::PickSelection,
     PickableBundle,
 };
 use bevy_prototype_lyon::{
@@ -16,9 +15,8 @@ use crate::{
     color,
     events::AddComponentEvent,
     game_state::GameState,
-    game_ui::GameUiState,
     layer,
-    node::{NodeConnections, SystemNodeBundle},
+    node::{client::Client, server::Server, NodeConnections, NodeType, SystemNodeBundle},
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -60,8 +58,6 @@ impl Plugin for GridPlugin {
                 .run_if(on_event::<ListenedEvent<DragEnd>>())
                 .in_set(EditModeSet),
         );
-
-        app.add_system(node_deselection.after(CoreSet::First));
 
         app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Edit)));
 
@@ -139,31 +135,36 @@ fn add_system_component(
 
         let texture_path = node_type.get_texture_path();
 
-        commands
-            .spawn((
-                MaterialMesh2dBundle {
-                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-                    transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
-                        .with_scale(Vec3::splat(SYSTEM_COMPONENT_NODE_MESH_SCALE)),
-                    material: materials.add(ColorMaterial::from(Color::NONE)),
-                    ..default()
-                },
-                SystemNodeBundle::new(node_type.clone()),
-                OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
-                OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
-                OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
-                OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
-                PickableBundle::default(),
-                RaycastPickTarget::default(),
-            ))
-            .with_children(|builder| {
-                builder.spawn(SpriteBundle {
-                    texture: asset_server.load(texture_path),
-                    transform: Transform::default()
-                        .with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
-                    ..default()
-                });
+        let mut node_entity = commands.spawn((
+            MaterialMesh2dBundle {
+                mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
+                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_NODE_MESH_SCALE)),
+                material: materials.add(ColorMaterial::from(Color::NONE)),
+                ..default()
+            },
+            SystemNodeBundle::new(node_type.clone()),
+            OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
+            OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
+            OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
+            OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
+            PickableBundle::default(),
+            RaycastPickTarget::default(),
+        ));
+
+        node_entity.with_children(|builder| {
+            builder.spawn(SpriteBundle {
+                texture: asset_server.load(texture_path),
+                transform: Transform::default()
+                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
+                ..default()
             });
+        });
+
+        match node_type {
+            NodeType::Client => node_entity.insert(Client::new()),
+            NodeType::Server => node_entity.insert(Server::new()),
+        };
     }
 }
 
@@ -282,15 +283,10 @@ fn drag_end_node(
     mut drag_event: EventReader<ListenedEvent<DragEnd>>,
     mut nodes_query: Query<&mut Transform>,
     mut node_connect_state: ResMut<NodeConnectState>,
-    mut game_ui_state: ResMut<GameUiState>,
 ) {
     for drag_event in drag_event.iter() {
         match drag_event.button {
             PointerButton::Primary => {
-                if drag_event.distance.length_squared() < 1.0 {
-                    game_ui_state.selected_node = Some(drag_event.target);
-                }
-
                 let mut transform = nodes_query.get_mut(drag_event.target).unwrap();
                 transform.translation = snap_to_grid(transform.translation.xy(), GRID_SIZE)
                     .extend(layer::SYSTEM_COMPONENTS);
@@ -379,14 +375,5 @@ fn remove_connection(
 
             commands.entity(event.target).despawn_recursive();
         }
-    }
-}
-
-fn node_deselection(
-    pick_selection_query: Query<(Entity, &PickSelection)>,
-    mut game_ui_state: ResMut<GameUiState>,
-) {
-    if pick_selection_query.iter().all(|(_, p)| !p.is_selected) {
-        game_ui_state.selected_node = None;
     }
 }

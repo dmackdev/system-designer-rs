@@ -5,8 +5,6 @@ use std::{
 
 use bevy::prelude::{Bundle, Component, Entity};
 
-use self::{client::Client, server::Server};
-
 pub mod client;
 pub mod server;
 
@@ -34,15 +32,15 @@ pub struct SystemNode;
 
 #[derive(Component, Clone, Debug)]
 pub enum NodeType {
-    Client(Client),
-    Server(Server),
+    Client,
+    Server,
 }
 
 impl Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match self {
-            NodeType::Client(_) => "Client",
-            NodeType::Server(_) => "Server",
+            NodeType::Client => "Client",
+            NodeType::Server => "Server",
         };
         write!(f, "{}", s)
     }
@@ -51,8 +49,8 @@ impl Display for NodeType {
 impl NodeType {
     pub fn get_texture_path(&self) -> String {
         let t = match self {
-            NodeType::Client(_) => "client",
-            NodeType::Server(_) => "server",
+            NodeType::Client => "client",
+            NodeType::Server => "server",
         };
 
         format!("textures/system_components/{t}.png")

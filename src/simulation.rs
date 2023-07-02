@@ -24,13 +24,13 @@ fn start_simulation(
     let node_entities: Vec<_> = node_entities_query.iter().collect();
 
     let client = match node_types.first().unwrap() {
-        NodeType::Client(_) => node_entities[0],
-        NodeType::Server(_) => node_entities[1],
+        NodeType::Client => node_entities[0],
+        NodeType::Server => node_entities[1],
     };
 
     let server = match node_types.first().unwrap() {
-        NodeType::Client(_) => node_entities[1],
-        NodeType::Server(_) => node_entities[0],
+        NodeType::Client => node_entities[1],
+        NodeType::Server => node_entities[0],
     };
 
     events.send(SendMessageEvent {

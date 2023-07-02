@@ -1,4 +1,6 @@
-#[derive(Clone, Debug, Default)]
+use bevy::prelude::Component;
+
+#[derive(Component, Clone, Debug, Default)]
 pub struct Server {
     pub config: String,
 }

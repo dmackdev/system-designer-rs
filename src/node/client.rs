@@ -1,7 +1,7 @@
-use bevy::utils::HashMap;
+use bevy::prelude::Component;
 use strum::{Display, EnumIter};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Component, Clone, Debug, Default)]
 pub struct Client {
     pub request_configs: Vec<RequestConfig>,
 }

@@ -1,7 +1,9 @@
-use bevy::prelude::{
-    in_state, App, EventWriter, IntoSystemConfig, IntoSystemSetConfig, Plugin, SystemSet,
+use bevy::prelude::{in_state, App, EventWriter, IntoSystemSetConfig, Plugin, SystemSet};
+use bevy_egui::{
+    egui::{self, Context},
+    EguiContexts,
 };
-use bevy_egui::{egui, EguiContexts};
+use bevy_mod_picking::selection::PickSelection;
 use strum::IntoEnumIterator;
 
 use crate::{
@@ -14,7 +16,7 @@ use crate::{
     },
 };
 
-use bevy::{input::common_conditions::input_toggle_active, prelude::*};
+use bevy::prelude::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct GameUiSystemSet;
@@ -23,23 +25,17 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GameUiState>();
         app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Edit)));
 
-        app.add_system(inspector_ui.run_if(input_toggle_active(true, KeyCode::Escape)));
+        app.add_system(tools_ui);
+        app.add_system(node_inspector_ui::<Client>);
+        app.add_system(node_inspector_ui::<Server>);
     }
 }
 
-#[derive(Default, Resource)]
-pub struct GameUiState {
-    pub selected_node: Option<Entity>,
-}
-
-fn inspector_ui(
+fn tools_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
-    game_ui_state: Res<GameUiState>,
-    mut nodes: Query<(&mut NodeType, &mut NodeName)>,
     mut start_sim: EventWriter<StartSimulationEvent>,
 ) {
     let ctx = contexts.ctx_mut();
@@ -51,11 +47,11 @@ fn inspector_ui(
                 ui.heading("Components");
 
                 if ui.button("Add Client").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Client(Client::new())));
+                    add_component_events.send(AddComponentEvent(NodeType::Client));
                 }
 
                 if ui.button("Add Server").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Server(Server::new())));
+                    add_component_events.send(AddComponentEvent(NodeType::Server));
                 }
 
                 ui.heading("Simulation");
@@ -67,23 +63,34 @@ fn inspector_ui(
                 ui.allocate_space(ui.available_size());
             });
         });
+}
 
+fn node_inspector_ui<T: View + Component>(
+    mut contexts: EguiContexts,
+    mut nodes: Query<(&PickSelection, &mut NodeName, &mut NodeType, &mut T)>,
+) {
+    if let Some((_, mut node_name, mut node_type, mut node)) =
+        nodes.iter_mut().find(|query| query.0.is_selected)
+    {
+        let ctx = contexts.ctx_mut();
+        show_inspector(ctx, &mut node_name, &mut node_type, node.as_mut());
+    }
+}
+
+fn show_inspector<T: View>(
+    ctx: &mut Context,
+    node_name: &mut NodeName,
+    node_type: &mut NodeType,
+    node: &mut T,
+) {
     egui::SidePanel::right("inspector")
         .default_width(200.0)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("Inspector");
-
-                if let Some(e) = game_ui_state.selected_node {
-                    let (mut node_type, mut node_name) = nodes.get_mut(e).unwrap();
-
-                    node_name.ui(ui);
-
-                    ui.separator();
-
-                    node_type.ui(ui);
-                }
-
+                node_type.ui(ui);
+                node_name.ui(ui);
+                node.ui(ui);
                 ui.allocate_space(ui.available_size());
             });
         });
@@ -108,11 +115,6 @@ impl View for NodeType {
             ui.label("Type:");
             ui.label(format!("{}", self));
         });
-
-        match self {
-            NodeType::Client(client) => client.ui(ui),
-            NodeType::Server(server) => server.ui(ui),
-        }
     }
 }
 
