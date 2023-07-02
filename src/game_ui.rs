@@ -231,7 +231,7 @@ impl View for Client {
 impl View for Server {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(
-            egui::TextEdit::multiline(&mut self.config)
+            egui::TextEdit::multiline(&mut self.request_handler)
                 .font(egui::TextStyle::Monospace) // for cursor height
                 .code_editor()
                 .desired_rows(10)

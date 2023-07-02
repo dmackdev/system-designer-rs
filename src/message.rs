@@ -4,6 +4,8 @@ use bevy::{
     prelude::*,
     sprite::{ColorMaterial, MaterialMesh2dBundle},
 };
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::node::{
     client::{Client, HttpMethod, RequestConfig},
@@ -46,12 +48,12 @@ pub enum Message {
     Request(Request),
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct Request {
     pub url: String,
     pub path: String,
     pub method: HttpMethod,
-    pub body: String,
+    pub body: Value,
     pub params: HashMap<String, String>,
 }
 
@@ -63,7 +65,7 @@ impl TryFrom<RequestConfig> for Request {
             url: value.url,
             path: value.path,
             method: value.method,
-            body: value.body,
+            body: serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
             params: HashMap::from_iter(value.params),
         })
     }

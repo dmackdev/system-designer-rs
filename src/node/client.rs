@@ -1,4 +1,5 @@
 use bevy::prelude::{Component, Entity, EventWriter, Query};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 
 use crate::message::{Message, MessageComponent, Request, SendMessageEvent};
@@ -37,7 +38,7 @@ pub struct RequestConfig {
     pub params: Vec<(String, String)>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, EnumIter, Display)]
 pub enum HttpMethod {
     #[default]
     Get,
