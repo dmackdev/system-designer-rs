@@ -27,9 +27,14 @@ impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
         app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Edit)));
 
-        app.add_system(tools_ui);
-        app.add_system(node_inspector_ui::<Client>);
-        app.add_system(node_inspector_ui::<Server>);
+        app.add_systems(
+            (
+                tools_ui,
+                node_inspector_ui::<Client>,
+                node_inspector_ui::<Server>,
+            )
+                .in_set(GameUiSystemSet),
+        );
     }
 }
 
@@ -223,7 +228,7 @@ impl View for Client {
         }
 
         if ui.button("Add Request").clicked() {
-            self.request_configs.push(RequestConfig::default());
+            self.request_configs.push_back(RequestConfig::default());
         }
     }
 }

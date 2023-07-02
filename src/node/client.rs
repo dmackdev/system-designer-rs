@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
@@ -8,7 +10,7 @@ use super::{Hostname, NodeConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct Client {
-    pub request_configs: Vec<RequestConfig>,
+    pub request_configs: VecDeque<RequestConfig>,
     pub state: ClientState,
 }
 
@@ -62,26 +64,26 @@ pub fn client_system(
         match client.state {
             ClientState::Start => {
                 // Send first request
-                let request_config = client.request_configs.remove(0);
+                if let Some(request_config) = client.request_configs.pop_front() {
+                    let recipient = hostnames
+                        .iter()
+                        .find(|(_, node_name)| node_name.0 == request_config.url);
 
-                let recipient = hostnames
-                    .iter()
-                    .find(|(_, node_name)| node_name.0 == request_config.url);
+                    if let Some((recipient, _)) = recipient {
+                        if !client_connections.is_connected_to(recipient) {
+                            return;
+                        }
 
-                if let Some((recipient, _)) = recipient {
-                    if !client_connections.is_connected_to(recipient) {
-                        return;
+                        let request = Request::try_from(request_config).unwrap();
+
+                        events.send(SendMessageEvent {
+                            sender: client_entity,
+                            recipients: vec![recipient],
+                            message: Message::Request(request),
+                        });
+
+                        client.state = ClientState::Waiting;
                     }
-
-                    let request = Request::try_from(request_config).unwrap();
-
-                    events.send(SendMessageEvent {
-                        sender: client_entity,
-                        recipients: vec![recipient],
-                        message: Message::Request(request),
-                    });
-
-                    client.state = ClientState::Waiting;
                 }
             }
             ClientState::Waiting => {}
