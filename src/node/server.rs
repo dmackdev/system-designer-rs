@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, default};
+use std::collections::VecDeque;
 
 use bevy::prelude::{Bundle, Component, Query};
 
@@ -31,7 +31,7 @@ impl SystemNodeTrait for Server {
 #[derive(Bundle, Default)]
 pub struct ServerBundle {
     server: Server,
-    host_name: Hostname,
+    hostname: Hostname,
 }
 
 #[derive(Clone, Debug, Default)]
