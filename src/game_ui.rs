@@ -6,7 +6,7 @@ use bevy_egui::{egui, EguiContexts};
 use crate::{
     events::{AddComponentEvent, StartSimulationEvent},
     game_state::GameState,
-    node::{Client, NodeName, NodeType, Server},
+    node::{client::Client, server::Server, NodeName, NodeType},
 };
 
 use bevy::{input::common_conditions::input_toggle_active, prelude::*};

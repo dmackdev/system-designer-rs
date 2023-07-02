@@ -5,6 +5,11 @@ use std::{
 
 use bevy::prelude::{Bundle, Component, Entity};
 
+use self::{client::Client, server::Server};
+
+pub mod client;
+pub mod server;
+
 #[derive(Bundle)]
 pub struct SystemNodeBundle {
     node: SystemNode,
@@ -51,28 +56,6 @@ impl NodeType {
         };
 
         format!("textures/system_components/{t}.png")
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Client {
-    pub config: String,
-}
-
-impl Client {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Server {
-    pub config: String,
-}
-
-impl Server {
-    pub fn new() -> Self {
-        Default::default()
     }
 }
 
