@@ -1,6 +1,10 @@
 use bevy::prelude::Component;
 use strum::{Display, EnumIter};
 
+use crate::message::MessageComponent;
+
+use super::SystemNodeTrait;
+
 #[derive(Component, Clone, Debug, Default)]
 pub struct Client {
     pub request_configs: Vec<RequestConfig>,
@@ -9,6 +13,13 @@ pub struct Client {
 impl Client {
     pub fn new() -> Self {
         Default::default()
+    }
+}
+
+impl SystemNodeTrait for Client {
+    fn handle_message(&mut self, message: MessageComponent) {
+        println!("HANDLING MESSAGE FOR CLIENT:");
+        println!("{:?}", message);
     }
 }
 

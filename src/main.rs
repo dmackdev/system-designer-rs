@@ -6,7 +6,7 @@ use events::{AddComponentEvent, StartSimulationEvent};
 use game_state::{GameState, GameStatePlugin};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
-use message::{MessagePlugin, SendMessageEvent};
+use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
 use simulation::SimulationPlugin;
 
 mod color;
@@ -39,6 +39,8 @@ fn main() {
     app.add_event::<AddComponentEvent>();
     app.add_event::<StartSimulationEvent>();
     app.add_event::<SendMessageEvent>();
+    app.add_event::<MessageArrivedEvent>();
+
     app.add_state::<GameState>();
 
     app.add_plugins(default)

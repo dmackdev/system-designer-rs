@@ -5,6 +5,8 @@ use std::{
 
 use bevy::prelude::{Bundle, Component, Entity};
 
+use crate::message::MessageComponent;
+
 pub mod client;
 pub mod server;
 
@@ -25,6 +27,10 @@ impl SystemNodeBundle {
             node_connections: NodeConnections::new(),
         }
     }
+}
+
+pub trait SystemNodeTrait {
+    fn handle_message(&mut self, message: MessageComponent);
 }
 
 #[derive(Component)]

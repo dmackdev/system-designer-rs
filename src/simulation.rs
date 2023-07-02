@@ -1,9 +1,9 @@
-use bevy::prelude::{Entity, EventWriter, IntoSystemAppConfig, OnEnter, Plugin, Query, With};
+use bevy::prelude::{Entity, EventWriter, IntoSystemAppConfig, OnEnter, Plugin, Query};
 
 use crate::{
     game_state::GameState,
     message::{Message, Request, SendMessageEvent},
-    node::{client::HttpMethod, NodeType, SystemNode},
+    node::{client::Client, NodeConnections, NodeName},
 };
 
 pub struct SimulationPlugin;
@@ -15,30 +15,31 @@ impl Plugin for SimulationPlugin {
 }
 
 fn start_simulation(
-    nodes: Query<&NodeType>,
-    node_entities_query: Query<Entity, With<SystemNode>>,
+    mut client_query: Query<(Entity, &mut Client, &NodeConnections)>,
+    node_names: Query<(Entity, &NodeName)>,
     mut events: EventWriter<SendMessageEvent>,
 ) {
     // Test:
-    let node_types: Vec<_> = nodes.iter().collect();
-    let node_entities: Vec<_> = node_entities_query.iter().collect();
 
-    let client = match node_types.first().unwrap() {
-        NodeType::Client => node_entities[0],
-        NodeType::Server => node_entities[1],
-    };
+    let (client_entity, mut client, client_connections) = client_query.single_mut();
 
-    let server = match node_types.first().unwrap() {
-        NodeType::Client => node_entities[1],
-        NodeType::Server => node_entities[0],
-    };
+    let request_config = client.request_configs.remove(0);
 
-    events.send(SendMessageEvent {
-        sender: client,
-        recipients: vec![server],
-        message: Message::Request(Request {
-            method: HttpMethod::Get,
-            ..Default::default()
-        }),
-    });
+    let recipient = node_names
+        .iter()
+        .find(|(_, node_name)| node_name.0 == request_config.url);
+
+    if let Some((recipient, _)) = recipient {
+        if !client_connections.is_connected_to(recipient) {
+            return;
+        }
+
+        let request = Request::try_from(request_config).unwrap();
+
+        events.send(SendMessageEvent {
+            sender: client_entity,
+            recipients: vec![recipient],
+            message: Message::Request(request),
+        });
+    }
 }
