@@ -25,16 +25,11 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_set(GameUiSystemSet.run_if(in_state(GameState::Edit)));
-
-        app.add_systems(
-            (
-                tools_ui,
-                node_inspector_ui::<Client>,
-                node_inspector_ui::<Server>,
-            )
-                .in_set(GameUiSystemSet),
-        );
+        app.add_systems((
+            tools_ui,
+            node_inspector_ui::<Client>,
+            node_inspector_ui::<Server>,
+        ));
     }
 }
 
@@ -42,30 +37,33 @@ fn tools_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
     mut start_sim: EventWriter<StartSimulationEvent>,
+    game_state: Res<State<GameState>>,
 ) {
     let ctx = contexts.ctx_mut();
 
     egui::SidePanel::left("tools")
         .default_width(200.0)
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Components");
+            ui.add_enabled_ui(game_state.0 == GameState::Edit, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.heading("Components");
 
-                if ui.button("Add Client").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Client));
-                }
+                    if ui.button("Add Client").clicked() {
+                        add_component_events.send(AddComponentEvent(NodeType::Client));
+                    }
 
-                if ui.button("Add Server").clicked() {
-                    add_component_events.send(AddComponentEvent(NodeType::Server));
-                }
+                    if ui.button("Add Server").clicked() {
+                        add_component_events.send(AddComponentEvent(NodeType::Server));
+                    }
 
-                ui.heading("Simulation");
+                    ui.heading("Simulation");
 
-                if ui.button("Execute").clicked() {
-                    start_sim.send(StartSimulationEvent);
-                }
+                    if ui.button("Execute").clicked() {
+                        start_sim.send(StartSimulationEvent);
+                    }
 
-                ui.allocate_space(ui.available_size());
+                    ui.allocate_space(ui.available_size());
+                });
             });
         });
 }
@@ -79,12 +77,20 @@ fn node_inspector_ui<T: View + Component>(
         Option<&mut Hostname>,
         &mut T,
     )>,
+    game_state: Res<State<GameState>>,
 ) {
     if let Some((_, mut node_name, mut node_type, hostname, mut node)) =
         nodes.iter_mut().find(|query| query.0.is_selected)
     {
         let ctx = contexts.ctx_mut();
-        show_inspector(ctx, &mut node_name, &mut node_type, hostname, node.as_mut());
+        show_inspector(
+            ctx,
+            &mut node_name,
+            &mut node_type,
+            hostname,
+            node.as_mut(),
+            game_state.0 == GameState::Edit,
+        );
     }
 }
 
@@ -94,21 +100,24 @@ fn show_inspector<T: View>(
     node_type: &mut NodeType,
     hostname: Option<Mut<'_, Hostname>>,
     node: &mut T,
+    enabled: bool,
 ) {
     egui::SidePanel::right("inspector")
         .default_width(200.0)
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Inspector");
-                node_type.ui(ui);
-                node_name.ui(ui);
+            ui.add_enabled_ui(enabled, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.heading("Inspector");
+                    node_type.ui(ui);
+                    node_name.ui(ui);
 
-                if let Some(mut hostname) = hostname {
-                    hostname.ui(ui);
-                }
+                    if let Some(mut hostname) = hostname {
+                        hostname.ui(ui);
+                    }
 
-                node.ui(ui);
-                ui.allocate_space(ui.available_size());
+                    node.ui(ui);
+                    ui.allocate_space(ui.available_size());
+                });
             });
         });
 }
