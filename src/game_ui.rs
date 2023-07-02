@@ -1,4 +1,4 @@
-use bevy::prelude::{in_state, App, EventWriter, IntoSystemSetConfig, Plugin, SystemSet};
+use bevy::prelude::{App, EventWriter, Plugin, SystemSet};
 use bevy_egui::{
     egui::{self, Context},
     EguiContexts,
