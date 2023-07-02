@@ -16,11 +16,7 @@ use crate::{
     events::AddComponentEvent,
     game_state::GameState,
     layer,
-    node::{
-        client::Client,
-        server::{Server, ServerBundle},
-        NodeConnections, NodeType, SystemNodeBundle,
-    },
+    node::{client::Client, server::ServerBundle, NodeConnections, NodeType, SystemNodeBundle},
 };
 
 const GRID_SIZE: f32 = 50.0;

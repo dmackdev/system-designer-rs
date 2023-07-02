@@ -3,7 +3,7 @@ use bevy::prelude::{Entity, EventWriter, IntoSystemAppConfig, OnEnter, Plugin, Q
 use crate::{
     game_state::GameState,
     message::{Message, Request, SendMessageEvent},
-    node::{client::Client, Hostname, NodeConnections, NodeName},
+    node::{client::Client, Hostname, NodeConnections},
 };
 
 pub struct SimulationPlugin;
