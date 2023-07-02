@@ -15,6 +15,7 @@ bevy_mod_picking = { version = "0.13.0", features = [
   "selection",
   "highlight",
 ], default-features = false }
+strum = { version = "0.25", features = ["derive"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
