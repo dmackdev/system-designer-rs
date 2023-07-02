@@ -30,6 +30,7 @@ impl SystemNodeBundle {
 }
 
 pub trait SystemNodeTrait {
+    fn start_simulation(&mut self);
     fn handle_message(&mut self, message: MessageComponent);
 }
 

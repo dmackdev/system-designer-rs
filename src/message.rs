@@ -36,9 +36,9 @@ impl Plugin for MessagePlugin {
 
 #[derive(Component, Clone, Debug)]
 pub struct MessageComponent {
-    sender: Entity,
-    recipient: Entity,
-    message: Message,
+    pub sender: Entity,
+    pub recipient: Entity,
+    pub message: Message,
 }
 
 #[derive(Clone, Debug)]
