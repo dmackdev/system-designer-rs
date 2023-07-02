@@ -3,7 +3,7 @@ use bevy::prelude::{Entity, EventWriter, IntoSystemAppConfig, OnEnter, Plugin, Q
 use crate::{
     game_state::GameState,
     message::{Message, Request, SendMessageEvent},
-    node::{client::Client, NodeConnections, NodeName},
+    node::{client::Client, Hostname, NodeConnections, NodeName},
 };
 
 pub struct SimulationPlugin;
@@ -16,7 +16,7 @@ impl Plugin for SimulationPlugin {
 
 fn start_simulation(
     mut client_query: Query<(Entity, &mut Client, &NodeConnections)>,
-    node_names: Query<(Entity, &NodeName)>,
+    hostnames: Query<(Entity, &Hostname)>,
     mut events: EventWriter<SendMessageEvent>,
 ) {
     // Test:
@@ -25,7 +25,7 @@ fn start_simulation(
 
     let request_config = client.request_configs.remove(0);
 
-    let recipient = node_names
+    let recipient = hostnames
         .iter()
         .find(|(_, node_name)| node_name.0 == request_config.url);
 

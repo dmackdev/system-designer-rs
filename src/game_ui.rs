@@ -12,7 +12,7 @@ use crate::{
     node::{
         client::{Client, HttpMethod, RequestConfig},
         server::Server,
-        NodeName, NodeType,
+        Hostname, NodeName, NodeType,
     },
 };
 
@@ -67,13 +67,19 @@ fn tools_ui(
 
 fn node_inspector_ui<T: View + Component>(
     mut contexts: EguiContexts,
-    mut nodes: Query<(&PickSelection, &mut NodeName, &mut NodeType, &mut T)>,
+    mut nodes: Query<(
+        &PickSelection,
+        &mut NodeName,
+        &mut NodeType,
+        Option<&mut Hostname>,
+        &mut T,
+    )>,
 ) {
-    if let Some((_, mut node_name, mut node_type, mut node)) =
+    if let Some((_, mut node_name, mut node_type, hostname, mut node)) =
         nodes.iter_mut().find(|query| query.0.is_selected)
     {
         let ctx = contexts.ctx_mut();
-        show_inspector(ctx, &mut node_name, &mut node_type, node.as_mut());
+        show_inspector(ctx, &mut node_name, &mut node_type, hostname, node.as_mut());
     }
 }
 
@@ -81,6 +87,7 @@ fn show_inspector<T: View>(
     ctx: &mut Context,
     node_name: &mut NodeName,
     node_type: &mut NodeType,
+    hostname: Option<Mut<'_, Hostname>>,
     node: &mut T,
 ) {
     egui::SidePanel::right("inspector")
@@ -90,6 +97,11 @@ fn show_inspector<T: View>(
                 ui.heading("Inspector");
                 node_type.ui(ui);
                 node_name.ui(ui);
+
+                if let Some(mut hostname) = hostname {
+                    hostname.ui(ui);
+                }
+
                 node.ui(ui);
                 ui.allocate_space(ui.available_size());
             });
@@ -104,6 +116,15 @@ impl View for NodeName {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Name:");
+            ui.text_edit_singleline(&mut self.0);
+        });
+    }
+}
+
+impl View for Hostname {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Hostname:");
             ui.text_edit_singleline(&mut self.0);
         });
     }

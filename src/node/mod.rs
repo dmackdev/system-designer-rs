@@ -72,6 +72,9 @@ impl NodeName {
     }
 }
 
+#[derive(Default, Component)]
+pub struct Hostname(pub String);
+
 #[derive(Component)]
 pub struct NodeConnections {
     // other node entity -> connection line entity

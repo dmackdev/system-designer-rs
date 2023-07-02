@@ -16,7 +16,11 @@ use crate::{
     events::AddComponentEvent,
     game_state::GameState,
     layer,
-    node::{client::Client, server::Server, NodeConnections, NodeType, SystemNodeBundle},
+    node::{
+        client::Client,
+        server::{Server, ServerBundle},
+        NodeConnections, NodeType, SystemNodeBundle,
+    },
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -163,7 +167,7 @@ fn add_system_component(
 
         match node_type {
             NodeType::Client => node_entity.insert(Client::new()),
-            NodeType::Server => node_entity.insert(Server::new()),
+            NodeType::Server => node_entity.insert(ServerBundle::default()),
         };
     }
 }
