@@ -2,8 +2,8 @@ use bevy::prelude::{Entity, EventWriter, IntoSystemAppConfig, OnEnter, Plugin, Q
 
 use crate::{
     game_state::GameState,
-    message::{Message, SendMessageEvent},
-    node::{NodeType, SystemNode},
+    message::{Message, Request, SendMessageEvent},
+    node::{client::HttpMethod, NodeType, SystemNode},
 };
 
 pub struct SimulationPlugin;
@@ -36,6 +36,9 @@ fn start_simulation(
     events.send(SendMessageEvent {
         sender: client,
         recipients: vec![server],
-        message: Message::ClientRequest("HELLO".to_string()),
+        message: Message::Request(Request {
+            method: HttpMethod::Get,
+            ..Default::default()
+        }),
     });
 }

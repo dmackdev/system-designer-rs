@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use bevy::{
     prelude::*,
     sprite::{ColorMaterial, MaterialMesh2dBundle},
 };
+
+use crate::node::client::{HttpMethod, RequestConfig};
 
 pub struct MessagePlugin;
 
@@ -21,7 +25,30 @@ pub struct MessageComponent {
 
 #[derive(Clone)]
 pub enum Message {
-    ClientRequest(String),
+    Request(Request),
+}
+
+#[derive(Clone, Default)]
+pub struct Request {
+    pub url: String,
+    pub path: String,
+    pub method: HttpMethod,
+    pub body: String,
+    pub params: HashMap<String, String>,
+}
+
+impl TryFrom<RequestConfig> for Request {
+    type Error = ();
+
+    fn try_from(value: RequestConfig) -> Result<Self, Self::Error> {
+        Ok(Self {
+            url: value.url,
+            path: value.path,
+            method: value.method,
+            body: value.body,
+            params: HashMap::from_iter(value.params),
+        })
+    }
 }
 
 pub struct SendMessageEvent {
