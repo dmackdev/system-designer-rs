@@ -126,6 +126,7 @@ impl View for Client {
         ui.separator();
 
         let format_method = |method: HttpMethod| method.to_string().to_ascii_uppercase();
+        let mut request_idx_to_delete = None;
 
         for (idx, config) in self.request_configs.iter_mut().enumerate() {
             ui.horizontal(|ui| {
@@ -154,13 +155,13 @@ impl View for Client {
                 HttpMethod::Get => {
                     ui.label("Params:");
 
-                    let mut params_idx_to_delete = vec![];
+                    let mut params_idx_to_delete = None;
 
                     for (idx, (id, val)) in config.params.iter_mut().enumerate() {
                         ui.columns(2, |cols| {
                             cols[0].horizontal(|ui| {
                                 if ui.button("x").clicked() {
-                                    params_idx_to_delete.push(idx);
+                                    params_idx_to_delete = Some(idx);
                                 }
                                 ui.text_edit_singleline(id);
                             });
@@ -168,7 +169,7 @@ impl View for Client {
                         });
                     }
 
-                    for i in params_idx_to_delete.into_iter() {
+                    if let Some(i) = params_idx_to_delete {
                         config.params.remove(i);
                     }
 
@@ -189,8 +190,17 @@ impl View for Client {
                 }
             }
 
+            if ui.button("Delete Request").clicked() {
+                request_idx_to_delete = Some(idx);
+            }
+
             ui.separator();
         }
+
+        if let Some(i) = request_idx_to_delete {
+            self.request_configs.remove(i);
+        }
+
         if ui.button("Add Request").clicked() {
             self.request_configs.push(RequestConfig::default());
         }
