@@ -33,6 +33,7 @@ impl SystemNodeTrait for Client {
         if let ClientState::Waiting(trace_id) = self.state {
             if trace_id == message.trace_id {
                 println!("RECEIVED CORRECT RESPONSE");
+                self.state = ClientState::Start;
                 return;
             }
         }
