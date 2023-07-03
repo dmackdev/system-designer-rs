@@ -314,41 +314,44 @@ fn pointer_up_node(
     mut node_connect_state: ResMut<NodeConnectState>,
 ) {
     for pointer_up_event in events.iter() {
-        if matches!(pointer_up_event.button, PointerButton::Secondary) {
-            if let Some(start_node_entity) = node_connect_state.start_node_entity {
-                let end_node_entity = pointer_up_event.target;
+        if !matches!(pointer_up_event.button, PointerButton::Secondary) {
+            continue;
+        }
 
-                if start_node_entity != end_node_entity {
-                    let [mut start_node, mut end_node] = nodes_query
-                        .get_many_mut([start_node_entity, end_node_entity])
-                        .unwrap();
+        if let Some(start_node_entity) = node_connect_state.start_node_entity {
+            let end_node_entity = pointer_up_event.target;
 
-                    if start_node.is_connected_to(end_node_entity) {
-                        println!("ALREADY MADE CONNETION");
-                        continue;
-                    }
-
-                    println!("FOUND CONNECTION");
-
-                    let line_in_progress_entity =
-                        node_connect_state.line_in_progress_entity.unwrap();
-
-                    start_node.add_connection(end_node_entity, line_in_progress_entity);
-                    end_node.add_connection(start_node_entity, line_in_progress_entity);
-
-                    commands
-                        .entity(node_connect_state.line_in_progress_entity.unwrap())
-                        .insert(ConnectedNodeConnectionLine(
-                            start_node_entity,
-                            end_node_entity,
-                        ))
-                        .insert(OnPointer::<Click>::send_event::<ListenedEvent<Click>>())
-                        .insert(PickableBundle::default())
-                        .insert(RaycastPickTarget::default());
-
-                    node_connect_state.line_in_progress_entity = None;
-                }
+            if start_node_entity == end_node_entity {
+                continue;
             }
+
+            let [mut start_node, mut end_node] = nodes_query
+                .get_many_mut([start_node_entity, end_node_entity])
+                .unwrap();
+
+            if start_node.is_connected_to(end_node_entity) {
+                println!("ALREADY MADE CONNETION");
+                continue;
+            }
+
+            println!("FOUND CONNECTION");
+
+            let line_in_progress_entity = node_connect_state.line_in_progress_entity.unwrap();
+
+            start_node.add_connection(end_node_entity, line_in_progress_entity);
+            end_node.add_connection(start_node_entity, line_in_progress_entity);
+
+            commands
+                .entity(node_connect_state.line_in_progress_entity.unwrap())
+                .insert(ConnectedNodeConnectionLine(
+                    start_node_entity,
+                    end_node_entity,
+                ))
+                .insert(OnPointer::<Click>::send_event::<ListenedEvent<Click>>())
+                .insert(PickableBundle::default())
+                .insert(RaycastPickTarget::default());
+
+            node_connect_state.line_in_progress_entity = None;
         }
     }
 }
