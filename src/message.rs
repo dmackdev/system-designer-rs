@@ -51,7 +51,7 @@ pub enum Message {
     Response(Response),
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub struct Request {
     pub url: String,
     pub path: String,

@@ -1,24 +1,27 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
-use bevy::prelude::{Bundle, Component, Entity, EventWriter, Query};
+use bevy::prelude::{warn, Bundle, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::message::{Message, MessageComponent, Request, Response, SendMessageEvent};
 
-use super::{Hostname, SystemNodeTrait};
+use super::{Hostname, NodeConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
     pub request_handler: String,
-    pub request_queue: VecDeque<(Entity, Uuid, Request)>,
+    pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
+    active_executions: HashMap<Uuid, ServerExecution>,
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"
 const requestHandler = function* () {
-  return response(200, request);
+  const fetchResult = yield http.get("server1", "", {});
+
+  return response(200, fetchResult);
 }
 "#;
 
@@ -26,25 +29,23 @@ impl Default for Server {
     fn default() -> Self {
         Self {
             request_handler: EXAMPLE_REQUEST_HANDLER.to_string(),
-            request_queue: Default::default(),
+            message_queue: Default::default(),
             state: Default::default(),
+            active_executions: Default::default(),
         }
     }
 }
 
 impl SystemNodeTrait for Server {
     fn start_simulation(&mut self) {
-        self.state = ServerState::Start;
+        self.state = ServerState::Active;
     }
 
     fn handle_message(&mut self, message: MessageComponent) {
         println!("HANDLING MESSAGE FOR SERVER:");
         println!("{:?}", message);
 
-        if let Message::Request(request) = message.message {
-            self.request_queue
-                .push_back((message.sender, message.trace_id, request))
-        }
+        self.message_queue.push_back(message);
     }
 }
 
@@ -58,37 +59,73 @@ pub struct ServerBundle {
 pub enum ServerState {
     #[default]
     SimulationNotStarted,
-    Start,
-    Idle,
+    Active,
 }
 
+#[allow(clippy::single_match)]
 pub fn server_system(
-    mut server_query: Query<(Entity, &mut Server)>,
+    mut server_query: Query<(Entity, &mut Server, &NodeConnections)>,
     mut events: EventWriter<SendMessageEvent>,
+    hostnames: Query<(Entity, &Hostname)>,
 ) {
-    for (server_entity, mut server) in server_query.iter_mut() {
+    for (server_entity, mut server, connections) in server_query.iter_mut() {
         match server.state {
-            ServerState::Start => {
-                server.state = ServerState::Idle;
-            }
-            ServerState::Idle => {
-                if let Some((sender, trace_id, request)) = server.request_queue.pop_front() {
-                    let execution = ServerExecution::new(server.request_handler.clone(), request);
+            ServerState::Active => {
+                let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
+
+                for message in message_queue {
+                    let mut execution = match message.message {
+                        Message::Request(request) => ServerExecution::new(
+                            server.request_handler.clone(),
+                            request,
+                            message.sender,
+                            message.trace_id,
+                        ),
+                        Message::Response(response) => {
+                            let mut execution =
+                                server.active_executions.remove(&message.trace_id).unwrap();
+
+                            execution.yield_values.push(YieldValue::Response(response));
+
+                            execution
+                        }
+                    };
 
                     let res = execution.execute();
 
-                    if res.done {
-                        if let YieldValue::Response(response) = res.value {
+                    println!("{:?}", res);
+
+                    match (res.done, res.value) {
+                        (true, YieldValue::Response(response)) => {
                             events.send(SendMessageEvent {
                                 sender: server_entity,
-                                recipients: vec![sender],
+                                recipients: vec![execution.original_sender],
                                 message: Message::Response(response),
-                                trace_id,
+                                trace_id: execution.original_trace_id,
                             });
-
-                            server.state = ServerState::Start;
                         }
-                    }
+                        (false, YieldValue::Request(new_request)) => {
+                            let new_trace_id = Uuid::new_v4();
+
+                            let recipient = hostnames
+                                .iter()
+                                .find(|(_, node_name)| node_name.0 == new_request.url);
+
+                            if let Some((recipient, _)) = recipient {
+                                if connections.is_connected_to(recipient) {
+                                    events.send(SendMessageEvent {
+                                        sender: server_entity,
+                                        recipients: vec![recipient],
+                                        message: Message::Request(new_request),
+                                        trace_id: new_trace_id,
+                                    });
+
+                                    server.active_executions.insert(new_trace_id, execution);
+                                }
+                            }
+                        }
+                        _ => warn!("Unexpected yield value"),
+                    };
                 }
             }
             _ => {}
@@ -96,24 +133,45 @@ pub fn server_system(
     }
 }
 
+#[derive(Clone, Debug)]
 struct ServerExecution {
-    context: Context,
+    request_handler: String,
+    request: Request,
+    yield_values: Vec<YieldValue>,
+    original_sender: Entity,
+    original_trace_id: Uuid,
 }
 
 impl ServerExecution {
-    fn new(request_handler: String, request: Request) -> Self {
+    fn new(
+        request_handler: String,
+        request: Request,
+        original_sender: Entity,
+        original_trace_id: Uuid,
+    ) -> Self {
+        Self {
+            request_handler,
+            request,
+            yield_values: vec![],
+            original_sender,
+            original_trace_id,
+        }
+    }
+
+    // Because we cannot store Context in a Bevy Component (it is not Send + Sync), we instead create
+    // a fresh Context and apply all the previous yield values to the generator in turn,
+    // in order to get the latest yield value.
+    fn execute(&mut self) -> GeneratorResultValue {
         let mut context = Context::default();
 
-        let request = serde_json::to_value(request).unwrap();
+        let request = serde_json::to_value(&self.request).unwrap();
         let request = JsValue::from_json(&request, &mut context).unwrap();
 
         context.register_global_property("request", request, Attribute::all());
 
-        context.register_global_property("lastGenResult", JsValue::Undefined, Attribute::all());
-
         let http_script = r#"
 const http = {
-get: function(url) { return { Request: { method: "GET", url }}; },
+  get: function(url, path, params) { return { Request: { url, path, method: "Get", body: null, params }}; },
 }
         "#;
 
@@ -121,7 +179,7 @@ get: function(url) { return { Request: { method: "GET", url }}; },
 
         let insert_db_script = r#"
 function insertDb(db, values) {
-return { Db: { Insert: { db_name: db, values }}};
+  return { Db: { Insert: { db_name: db, values }}};
 }
           "#;
 
@@ -129,36 +187,46 @@ return { Db: { Insert: { db_name: db, values }}};
 
         let response_script = r#"
 function response(status, data) {
-return { Response: { status, data } };
+  return { Response: { status, data } };
 }
           "#;
 
         context.eval(response_script).unwrap();
 
-        context.eval(request_handler).unwrap();
+        context.eval(&self.request_handler).unwrap();
 
         let generator_setup = r#"
-        const gen = requestHandler(request);
-                  "#;
+const gen = requestHandler(request);
+"#;
 
         context.eval(generator_setup).unwrap();
 
-        Self { context }
-    }
-
-    fn execute(mut self) -> GeneratorResultValue {
-        let value = self
-            .context
+        let mut value = context
             .eval(
                 r#"
-gen.next(lastGenResult);
+gen.next();
 "#,
             )
             .unwrap();
 
-        let value = value.to_json(&mut self.context).unwrap();
+        for prev_yield_value in self.yield_values.iter() {
+            let prev = serde_json::to_value(prev_yield_value).unwrap();
+            let prev = JsValue::from_json(&prev, &mut context).unwrap();
 
-        serde_json::from_value(value).unwrap()
+            context.register_global_property("lastGenResult", prev, Attribute::all());
+
+            value = context
+                .eval(
+                    r#"
+gen.next(lastGenResult);
+"#,
+                )
+                .unwrap();
+        }
+
+        let latest_value = value.to_json(&mut context).unwrap();
+
+        serde_json::from_value(latest_value).unwrap()
     }
 }
 
@@ -168,8 +236,8 @@ pub struct GeneratorResultValue {
     pub value: YieldValue,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum YieldValue {
     Response(Response),
-    Request,
+    Request(Request),
 }
