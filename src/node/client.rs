@@ -23,7 +23,7 @@ impl Client {
 
 impl SystemNodeTrait for Client {
     fn start_simulation(&mut self) {
-        self.state = ClientState::Start;
+        self.state = ClientState::SendNextRequest;
     }
 
     fn handle_message(&mut self, message: MessageComponent) {
@@ -33,7 +33,7 @@ impl SystemNodeTrait for Client {
         if let ClientState::Waiting(trace_id) = self.state {
             if trace_id == message.trace_id {
                 println!("RECEIVED CORRECT RESPONSE");
-                self.state = ClientState::Start;
+                self.state = ClientState::SendNextRequest;
                 return;
             }
         }
@@ -62,7 +62,7 @@ pub enum HttpMethod {
 pub enum ClientState {
     #[default]
     SimulationNotStarted,
-    Start,
+    SendNextRequest,
     Waiting(Uuid),
 }
 
@@ -72,7 +72,7 @@ pub fn client_system(
     mut events: EventWriter<SendMessageEvent>,
 ) {
     for (client_entity, mut client, client_connections) in client_query.iter_mut() {
-        if let ClientState::Start = client.state {
+        if let ClientState::SendNextRequest = client.state {
             // Send first request
             if let Some(request_config) = client.request_configs.pop_front() {
                 let recipient = hostnames
