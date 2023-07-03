@@ -17,7 +17,13 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            request_configs: VecDeque::from_iter([RequestConfig {
+                body: "\"Hello!\"".to_string(),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }
     }
 }
 
