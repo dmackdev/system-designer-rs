@@ -73,10 +73,7 @@ pub fn server_system(
             }
             ServerState::Idle => {
                 if let Some((sender, trace_id, request)) = server.request_queue.pop_front() {
-                    let execution = ServerExecution {
-                        request_handler: server.request_handler.clone(),
-                        request,
-                    };
+                    let execution = ServerExecution::new(server.request_handler.clone(), request);
 
                     let res = execution.execute();
 
@@ -100,15 +97,14 @@ pub fn server_system(
 }
 
 struct ServerExecution {
-    request_handler: String,
-    request: Request,
+    context: Context,
 }
 
 impl ServerExecution {
-    fn execute(self) -> GeneratorResultValue {
+    fn new(request_handler: String, request: Request) -> Self {
         let mut context = Context::default();
 
-        let request = serde_json::to_value(self.request).unwrap();
+        let request = serde_json::to_value(request).unwrap();
         let request = JsValue::from_json(&request, &mut context).unwrap();
 
         context.register_global_property("request", request, Attribute::all());
@@ -117,59 +113,42 @@ impl ServerExecution {
 
         let http_script = r#"
 const http = {
-  get: function(url) { return { Request: { method: "GET", url }}; },
+get: function(url) { return { Request: { method: "GET", url }}; },
 }
-          "#;
+        "#;
 
         context.eval(http_script).unwrap();
 
         let insert_db_script = r#"
 function insertDb(db, values) {
-  return { Db: { Insert: { db_name: db, values }}};
+return { Db: { Insert: { db_name: db, values }}};
 }
-            "#;
+          "#;
 
         context.eval(insert_db_script).unwrap();
 
         let response_script = r#"
 function response(status, data) {
-  return { Response: { status, data } };
+return { Response: { status, data } };
 }
-            "#;
+          "#;
 
         context.eval(response_script).unwrap();
 
-        let _request_handler = r#"
-const requestHandler = function* () {
-  const name = request.name;
-  const surname = request.surname;
-  const email = request.email;
-
-  const fetchResult = yield http.get("/cat-facts");
-
-  if (!fetchResult.ok) {
-    return response({ status: 500, body: "Cat Facts API is down!" });
-  }
-
-  const dbResult = yield insertDb("db1", [name, surname, email]);
-
-  if (dbResult.ok) {
-    return response({ status: 200, body: fetchResult.body });
-  } else {
-    return response({ status: 500, body: "Database insert failed!" });
-  }
-}
-          "#;
-
-        context.eval(self.request_handler).unwrap();
+        context.eval(request_handler).unwrap();
 
         let generator_setup = r#"
-const gen = requestHandler(request);
-          "#;
+        const gen = requestHandler(request);
+                  "#;
 
         context.eval(generator_setup).unwrap();
 
-        let value = context
+        Self { context }
+    }
+
+    fn execute(mut self) -> GeneratorResultValue {
+        let value = self
+            .context
             .eval(
                 r#"
 gen.next(lastGenResult);
@@ -177,7 +156,7 @@ gen.next(lastGenResult);
             )
             .unwrap();
 
-        let value = value.to_json(&mut context).unwrap();
+        let value = value.to_json(&mut self.context).unwrap();
 
         serde_json::from_value(value).unwrap()
     }
