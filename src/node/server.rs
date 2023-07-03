@@ -1,17 +1,35 @@
 use std::collections::VecDeque;
 
-use bevy::prelude::{Bundle, Component, Query};
+use bevy::prelude::{Bundle, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsValue};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::message::{Message, MessageComponent, Request};
+use crate::message::{Message, MessageComponent, Request, Response, SendMessageEvent};
 
 use super::{Hostname, SystemNodeTrait};
 
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, Clone, Debug)]
 pub struct Server {
     pub request_handler: String,
-    pub request_queue: VecDeque<Request>,
+    pub request_queue: VecDeque<(Entity, Uuid, Request)>,
     pub state: ServerState,
+}
+
+const EXAMPLE_REQUEST_HANDLER: &str = r#"
+const requestHandler = function* () {
+  return response(200, request);
+}
+"#;
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            request_handler: EXAMPLE_REQUEST_HANDLER.to_string(),
+            request_queue: Default::default(),
+            state: Default::default(),
+        }
+    }
 }
 
 impl SystemNodeTrait for Server {
@@ -23,8 +41,9 @@ impl SystemNodeTrait for Server {
         println!("HANDLING MESSAGE FOR SERVER:");
         println!("{:?}", message);
 
-        match message.message {
-            Message::Request(request) => self.request_queue.push_back(request),
+        if let Message::Request(request) = message.message {
+            self.request_queue
+                .push_back((message.sender, message.trace_id, request))
         }
     }
 }
@@ -43,22 +62,36 @@ pub enum ServerState {
     Idle,
 }
 
-pub fn server_system(mut server_query: Query<&mut Server>) {
-    for mut server in server_query.iter_mut() {
+pub fn server_system(
+    mut server_query: Query<(Entity, &mut Server)>,
+    mut events: EventWriter<SendMessageEvent>,
+) {
+    for (server_entity, mut server) in server_query.iter_mut() {
         match server.state {
             ServerState::Start => {
                 server.state = ServerState::Idle;
             }
             ServerState::Idle => {
-                if let Some(request) = server.request_queue.pop_front() {
+                if let Some((sender, trace_id, request)) = server.request_queue.pop_front() {
                     let execution = ServerExecution {
                         request_handler: server.request_handler.clone(),
                         request,
                     };
 
-                    execution.execute();
+                    let res = execution.execute();
 
-                    server.state = ServerState::Start;
+                    if res.done {
+                        if let YieldValue::Response(response) = res.value {
+                            events.send(SendMessageEvent {
+                                sender: server_entity,
+                                recipients: vec![sender],
+                                message: Message::Response(response),
+                                trace_id,
+                            });
+
+                            server.state = ServerState::Start;
+                        }
+                    }
                 }
             }
             _ => {}
@@ -72,7 +105,7 @@ struct ServerExecution {
 }
 
 impl ServerExecution {
-    fn execute(self) {
+    fn execute(self) -> GeneratorResultValue {
         let mut context = Context::default();
 
         let request = serde_json::to_value(self.request).unwrap();
@@ -99,8 +132,8 @@ function insertDb(db, values) {
         context.eval(insert_db_script).unwrap();
 
         let response_script = r#"
-function response(payload) {
-  return { Response: payload };
+function response(status, data) {
+  return { Response: { status, data } };
 }
             "#;
 
@@ -146,6 +179,18 @@ gen.next(lastGenResult);
 
         let value = value.to_json(&mut context).unwrap();
 
-        println!("{:?}", value);
+        serde_json::from_value(value).unwrap()
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct GeneratorResultValue {
+    pub done: bool,
+    pub value: YieldValue,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum YieldValue {
+    Response(Response),
+    Request,
 }

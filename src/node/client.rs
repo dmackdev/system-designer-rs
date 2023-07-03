@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
+use uuid::Uuid;
 
 use crate::message::{Message, MessageComponent, Request, SendMessageEvent};
 
@@ -28,6 +29,15 @@ impl SystemNodeTrait for Client {
     fn handle_message(&mut self, message: MessageComponent) {
         println!("HANDLING MESSAGE FOR CLIENT:");
         println!("{:?}", message);
+
+        if let ClientState::Waiting(trace_id) = self.state {
+            if trace_id == message.trace_id {
+                println!("RECEIVED CORRECT RESPONSE");
+                return;
+            }
+        }
+
+        println!("RECEIVED UNEXPECTED RESPONSE");
     }
 }
 
@@ -52,7 +62,7 @@ pub enum ClientState {
     #[default]
     SimulationNotStarted,
     Start,
-    Waiting,
+    Waiting(Uuid),
 }
 
 pub fn client_system(
@@ -61,33 +71,31 @@ pub fn client_system(
     mut events: EventWriter<SendMessageEvent>,
 ) {
     for (client_entity, mut client, client_connections) in client_query.iter_mut() {
-        match client.state {
-            ClientState::Start => {
-                // Send first request
-                if let Some(request_config) = client.request_configs.pop_front() {
-                    let recipient = hostnames
-                        .iter()
-                        .find(|(_, node_name)| node_name.0 == request_config.url);
+        if let ClientState::Start = client.state {
+            // Send first request
+            if let Some(request_config) = client.request_configs.pop_front() {
+                let recipient = hostnames
+                    .iter()
+                    .find(|(_, node_name)| node_name.0 == request_config.url);
 
-                    if let Some((recipient, _)) = recipient {
-                        if !client_connections.is_connected_to(recipient) {
-                            return;
-                        }
-
-                        let request = Request::try_from(request_config).unwrap();
-
-                        events.send(SendMessageEvent {
-                            sender: client_entity,
-                            recipients: vec![recipient],
-                            message: Message::Request(request),
-                        });
-
-                        client.state = ClientState::Waiting;
+                if let Some((recipient, _)) = recipient {
+                    if !client_connections.is_connected_to(recipient) {
+                        return;
                     }
+
+                    let request = Request::try_from(request_config).unwrap();
+                    let trace_id = Uuid::new_v4();
+
+                    events.send(SendMessageEvent {
+                        sender: client_entity,
+                        recipients: vec![recipient],
+                        message: Message::Request(request),
+                        trace_id,
+                    });
+
+                    client.state = ClientState::Waiting(trace_id);
                 }
             }
-            ClientState::Waiting => {}
-            _ => {}
         };
     }
 }

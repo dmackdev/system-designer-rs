@@ -6,6 +6,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::node::{
     client::{Client, HttpMethod, RequestConfig},
@@ -41,11 +42,13 @@ pub struct MessageComponent {
     pub sender: Entity,
     pub recipient: Entity,
     pub message: Message,
+    pub trace_id: Uuid,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     Request(Request),
+    Response(Response),
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
@@ -71,10 +74,17 @@ impl TryFrom<RequestConfig> for Request {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
+pub struct Response {
+    pub status: u16,
+    pub data: Value,
+}
+
 pub struct SendMessageEvent {
     pub sender: Entity,
     pub recipients: Vec<Entity>,
     pub message: Message,
+    pub trace_id: Uuid,
 }
 
 fn handle_send_message_event(
@@ -99,6 +109,7 @@ fn handle_send_message_event(
                     sender: event.sender,
                     recipient: *recipient,
                     message: event.message.clone(),
+                    trace_id: event.trace_id,
                 },
             ));
         }
