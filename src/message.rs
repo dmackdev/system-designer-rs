@@ -80,6 +80,15 @@ pub struct Response {
     pub data: Value,
 }
 
+impl Response {
+    pub fn not_found() -> Self {
+        Self {
+            status: 404,
+            data: Value::String("Not found".to_string()),
+        }
+    }
+}
+
 pub struct SendMessageEvent {
     pub sender: Entity,
     pub recipients: Vec<Entity>,

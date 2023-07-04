@@ -11,27 +11,27 @@ use super::{Hostname, NodeConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
-    pub request_handler: String,
+    pub endpoint_handlers: HashMap<Uuid, (String, String)>,
     pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
     active_executions: HashMap<Uuid, ServerExecution>,
 }
 
-const EXAMPLE_REQUEST_HANDLER: &str = r#"
-const requestHandler = function* () {
-  const fetchResult = yield http.get("server1", "", {});
-
-  return response(200, fetchResult);
+const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
+  return response(200, "Ok");
 }
 "#;
 
 impl Default for Server {
     fn default() -> Self {
         Self {
-            request_handler: EXAMPLE_REQUEST_HANDLER.to_string(),
             message_queue: Default::default(),
             state: Default::default(),
             active_executions: Default::default(),
+            endpoint_handlers: HashMap::from_iter([(
+                Uuid::new_v4(),
+                ("/".to_string(), EXAMPLE_REQUEST_HANDLER.to_string()),
+            )]),
         }
     }
 }
@@ -73,59 +73,74 @@ pub fn server_system(
             ServerState::Active => {
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
+                let endpoints: HashMap<String, String> =
+                    server.endpoint_handlers.clone().into_values().collect();
+
                 for message in message_queue {
-                    let mut execution = match message.message {
-                        Message::Request(request) => ServerExecution::new(
-                            server.request_handler.clone(),
-                            request,
-                            message.sender,
-                            message.trace_id,
-                        ),
+                    let execution = match message.message {
+                        Message::Request(request) => match endpoints.get(&request.path) {
+                            Some(request_handler) => Some(ServerExecution::new(
+                                request_handler.clone(),
+                                request,
+                                message.sender,
+                                message.trace_id,
+                            )),
+                            None => None,
+                        },
                         Message::Response(response) => {
                             let mut execution =
                                 server.active_executions.remove(&message.trace_id).unwrap();
 
                             execution.yield_values.push(YieldValue::Response(response));
 
-                            execution
+                            Some(execution)
                         }
                     };
 
-                    let res = execution.execute();
+                    if let Some(mut execution) = execution {
+                        let res = execution.execute();
 
-                    println!("{:?}", res);
+                        println!("{:?}", res);
 
-                    match (res.done, res.value) {
-                        (true, YieldValue::Response(response)) => {
-                            events.send(SendMessageEvent {
-                                sender: server_entity,
-                                recipients: vec![execution.original_sender],
-                                message: Message::Response(response),
-                                trace_id: execution.original_trace_id,
-                            });
-                        }
-                        (false, YieldValue::Request(new_request)) => {
-                            let new_trace_id = Uuid::new_v4();
+                        match (res.done, res.value) {
+                            (true, YieldValue::Response(response)) => {
+                                events.send(SendMessageEvent {
+                                    sender: server_entity,
+                                    recipients: vec![execution.original_sender],
+                                    message: Message::Response(response),
+                                    trace_id: execution.original_trace_id,
+                                });
+                            }
+                            (false, YieldValue::Request(new_request)) => {
+                                let new_trace_id = Uuid::new_v4();
 
-                            let recipient = hostnames
-                                .iter()
-                                .find(|(_, node_name)| node_name.0 == new_request.url);
+                                let recipient = hostnames
+                                    .iter()
+                                    .find(|(_, node_name)| node_name.0 == new_request.url);
 
-                            if let Some((recipient, _)) = recipient {
-                                if connections.is_connected_to(recipient) {
-                                    events.send(SendMessageEvent {
-                                        sender: server_entity,
-                                        recipients: vec![recipient],
-                                        message: Message::Request(new_request),
-                                        trace_id: new_trace_id,
-                                    });
+                                if let Some((recipient, _)) = recipient {
+                                    if connections.is_connected_to(recipient) {
+                                        events.send(SendMessageEvent {
+                                            sender: server_entity,
+                                            recipients: vec![recipient],
+                                            message: Message::Request(new_request),
+                                            trace_id: new_trace_id,
+                                        });
 
-                                    server.active_executions.insert(new_trace_id, execution);
+                                        server.active_executions.insert(new_trace_id, execution);
+                                    }
                                 }
                             }
-                        }
-                        _ => warn!("Unexpected yield value"),
-                    };
+                            _ => warn!("Unexpected yield value"),
+                        };
+                    } else {
+                        events.send(SendMessageEvent {
+                            sender: server_entity,
+                            recipients: vec![message.sender],
+                            message: Message::Response(Response::not_found()),
+                            trace_id: message.trace_id,
+                        });
+                    }
                 }
             }
             _ => {}

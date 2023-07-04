@@ -5,6 +5,7 @@ use bevy_egui::{
 };
 use bevy_mod_picking::selection::PickSelection;
 use strum::IntoEnumIterator;
+use uuid::Uuid;
 
 use crate::{
     events::{AddComponentEvent, StartSimulationEvent},
@@ -244,13 +245,45 @@ impl View for Client {
 
 impl View for Server {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.add(
-            egui::TextEdit::multiline(&mut self.request_handler)
-                .font(egui::TextStyle::Monospace) // for cursor height
-                .code_editor()
-                .desired_rows(10)
-                .lock_focus(true)
-                .desired_width(f32::INFINITY),
-        );
+        ui.separator();
+        ui.heading("Endpoints");
+        ui.separator();
+
+        let mut endpoint_ids_to_delete = vec![];
+
+        for (id, (path, handler)) in self.endpoint_handlers.iter_mut() {
+            ui.horizontal(|ui| {
+                ui.label("Path:");
+                ui.text_edit_singleline(path);
+            });
+
+            egui::CollapsingHeader::new("Request handler")
+                .id_source(id)
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(handler)
+                            .font(egui::TextStyle::Monospace) // for cursor height
+                            .code_editor()
+                            .desired_rows(10)
+                            .lock_focus(true)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+
+            if ui.button("Delete endpoint").clicked() {
+                endpoint_ids_to_delete.push(*id);
+            }
+
+            ui.separator();
+        }
+
+        for id in endpoint_ids_to_delete.iter() {
+            self.endpoint_handlers.remove(id);
+        }
+
+        if ui.button("Add endpoint").clicked() {
+            self.endpoint_handlers
+                .insert(Uuid::new_v4(), ("".to_string(), "".to_string()));
+        }
     }
 }

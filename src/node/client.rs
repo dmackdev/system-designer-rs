@@ -20,6 +20,7 @@ impl Client {
         Self {
             request_configs: VecDeque::from_iter([RequestConfig {
                 body: "\"Hello!\"".to_string(),
+                path: "/".to_string(),
                 ..Default::default()
             }]),
             ..Default::default()
