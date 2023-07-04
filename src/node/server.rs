@@ -7,14 +7,21 @@ use uuid::Uuid;
 
 use crate::message::{Message, MessageComponent, Request, Response, SendMessageEvent};
 
-use super::{Hostname, NodeConnections, SystemNodeTrait};
+use super::{client::HttpMethod, Hostname, NodeConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
-    pub endpoint_handlers: HashMap<Uuid, (String, String)>,
+    pub endpoint_handlers: HashMap<Uuid, Endpoint>,
     pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
     active_executions: HashMap<Uuid, ServerExecution>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Endpoint {
+    pub path: String,
+    pub method: HttpMethod,
+    pub handler: String,
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
@@ -30,7 +37,11 @@ impl Default for Server {
             active_executions: Default::default(),
             endpoint_handlers: HashMap::from_iter([(
                 Uuid::new_v4(),
-                ("/".to_string(), EXAMPLE_REQUEST_HANDLER.to_string()),
+                Endpoint {
+                    path: "/".to_string(),
+                    method: HttpMethod::Get,
+                    handler: EXAMPLE_REQUEST_HANDLER.to_string(),
+                },
             )]),
         }
     }
@@ -73,12 +84,26 @@ pub fn server_system(
             ServerState::Active => {
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
-                let endpoints: HashMap<String, String> =
-                    server.endpoint_handlers.clone().into_values().collect();
+                let endpoints: HashMap<String, HashMap<HttpMethod, String>> =
+                    server.endpoint_handlers.clone().into_values().fold(
+                        HashMap::new(),
+                        |mut acc,
+                         Endpoint {
+                             path,
+                             method,
+                             handler,
+                         }| {
+                            acc.entry(path).or_default().insert(method, handler);
+                            acc
+                        },
+                    );
 
                 for message in message_queue {
                     let execution = match message.message {
-                        Message::Request(request) => match endpoints.get(&request.path) {
+                        Message::Request(request) => match endpoints
+                            .get(&request.path)
+                            .and_then(|by_method| by_method.get(&request.method))
+                        {
                             Some(request_handler) => Some(ServerExecution::new(
                                 request_handler.clone(),
                                 request,

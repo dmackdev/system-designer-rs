@@ -58,7 +58,9 @@ pub struct RequestConfig {
     pub params: Vec<(String, String)>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, EnumIter, Display)]
+#[derive(
+    Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, EnumIter, Display, Hash,
+)]
 pub enum HttpMethod {
     #[default]
     Get,

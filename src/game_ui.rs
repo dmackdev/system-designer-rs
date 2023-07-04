@@ -12,7 +12,7 @@ use crate::{
     game_state::GameState,
     node::{
         client::{Client, HttpMethod, RequestConfig},
-        server::Server,
+        server::{Endpoint, Server},
         Hostname, NodeName, NodeType,
     },
 };
@@ -154,6 +154,10 @@ impl View for NodeType {
     }
 }
 
+fn format_method(method: &HttpMethod) -> String {
+    method.to_string().to_ascii_uppercase()
+}
+
 impl View for Client {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.separator();
@@ -161,7 +165,6 @@ impl View for Client {
         ui.heading("Requests");
         ui.separator();
 
-        let format_method = |method: HttpMethod| method.to_string().to_ascii_uppercase();
         let mut request_idx_to_delete = None;
 
         for (idx, config) in self.request_configs.iter_mut().enumerate() {
@@ -179,10 +182,10 @@ impl View for Client {
                 ui.label("Method:");
 
                 egui::ComboBox::from_id_source(idx)
-                    .selected_text(format_method(config.method))
+                    .selected_text(format_method(&config.method))
                     .show_ui(ui, |ui| {
                         for method in HttpMethod::iter() {
-                            ui.selectable_value(&mut config.method, method, format_method(method));
+                            ui.selectable_value(&mut config.method, method, format_method(&method));
                         }
                     });
             });
@@ -251,17 +254,25 @@ impl View for Server {
 
         let mut endpoint_ids_to_delete = vec![];
 
-        for (id, (path, handler)) in self.endpoint_handlers.iter_mut() {
+        for (id, endpoint) in self.endpoint_handlers.iter_mut() {
             ui.horizontal(|ui| {
                 ui.label("Path:");
-                ui.text_edit_singleline(path);
+                ui.text_edit_singleline(&mut endpoint.path);
             });
+
+            egui::ComboBox::from_id_source(id)
+                .selected_text(format_method(&endpoint.method))
+                .show_ui(ui, |ui| {
+                    for method in HttpMethod::iter() {
+                        ui.selectable_value(&mut endpoint.method, method, format_method(&method));
+                    }
+                });
 
             egui::CollapsingHeader::new("Request handler")
                 .id_source(id)
                 .show(ui, |ui| {
                     ui.add(
-                        egui::TextEdit::multiline(handler)
+                        egui::TextEdit::multiline(&mut endpoint.handler)
                             .font(egui::TextStyle::Monospace) // for cursor height
                             .code_editor()
                             .desired_rows(10)
@@ -282,8 +293,14 @@ impl View for Server {
         }
 
         if ui.button("Add endpoint").clicked() {
-            self.endpoint_handlers
-                .insert(Uuid::new_v4(), ("".to_string(), "".to_string()));
+            self.endpoint_handlers.insert(
+                Uuid::new_v4(),
+                Endpoint {
+                    path: "".to_string(),
+                    method: HttpMethod::Get,
+                    handler: "".to_string(),
+                },
+            );
         }
     }
 }
