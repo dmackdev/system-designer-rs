@@ -64,11 +64,16 @@ impl TryFrom<RequestConfig> for Request {
     type Error = ();
 
     fn try_from(value: RequestConfig) -> Result<Self, Self::Error> {
+        let body = match value.method {
+            HttpMethod::Get => Value::Null,
+            HttpMethod::Post => serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
+        };
+
         Ok(Self {
             url: value.url,
             path: value.path,
             method: value.method,
-            body: serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
+            body,
             params: HashMap::from_iter(value.params),
         })
     }
