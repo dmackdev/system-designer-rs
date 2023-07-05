@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumIter};
+use strum::EnumIter;
 use uuid::Uuid;
 
 use crate::message::{Message, MessageComponent, Request, SendMessageEvent};
@@ -58,7 +58,17 @@ pub struct RequestConfig {
 }
 
 #[derive(
-    Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, EnumIter, Display, Hash,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    EnumIter,
+    strum::Display,
+    Hash,
 )]
 pub enum HttpMethod {
     #[default]
