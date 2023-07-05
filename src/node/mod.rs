@@ -1,7 +1,4 @@
-use std::{
-    collections::{hash_map::Iter, HashMap},
-    fmt::Display,
-};
+use std::collections::{hash_map::Iter, HashMap};
 
 use bevy::prelude::{Bundle, Component, Entity};
 
@@ -38,31 +35,16 @@ pub trait SystemNodeTrait {
 #[derive(Component)]
 pub struct SystemNode;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, strum::Display)]
 pub enum NodeType {
     Client,
     Server,
     Database,
 }
 
-impl Display for NodeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let s = match self {
-            NodeType::Client => "Client",
-            NodeType::Server => "Server",
-            NodeType::Database => "Database",
-        };
-        write!(f, "{}", s)
-    }
-}
-
 impl NodeType {
     pub fn get_texture_path(&self) -> String {
-        let t = match self {
-            NodeType::Client => "client",
-            NodeType::Server => "server",
-            NodeType::Database => "database",
-        };
+        let t = self.to_string().to_ascii_lowercase();
 
         format!("textures/system_components/{t}.png")
     }
