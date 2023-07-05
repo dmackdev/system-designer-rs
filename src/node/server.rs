@@ -82,6 +82,10 @@ pub fn server_system(
     for (server_entity, mut server, connections) in server_query.iter_mut() {
         match server.state {
             ServerState::Active => {
+                if server.message_queue.is_empty() {
+                    continue;
+                }
+
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
                 let endpoints_by_method: HashMap<HttpMethod, HashMap<String, String>> =
