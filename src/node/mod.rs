@@ -8,6 +8,7 @@ use bevy::prelude::{Bundle, Component, Entity};
 use crate::message::MessageComponent;
 
 pub mod client;
+pub mod database;
 pub mod server;
 
 #[derive(Bundle)]
@@ -41,6 +42,7 @@ pub struct SystemNode;
 pub enum NodeType {
     Client,
     Server,
+    Database,
 }
 
 impl Display for NodeType {
@@ -48,6 +50,7 @@ impl Display for NodeType {
         let s = match self {
             NodeType::Client => "Client",
             NodeType::Server => "Server",
+            NodeType::Database => "Database",
         };
         write!(f, "{}", s)
     }
@@ -58,6 +61,7 @@ impl NodeType {
         let t = match self {
             NodeType::Client => "client",
             NodeType::Server => "server",
+            NodeType::Database => "database",
         };
 
         format!("textures/system_components/{t}.png")
