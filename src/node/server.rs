@@ -84,7 +84,7 @@ pub fn server_system(
             ServerState::Active => {
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
-                let endpoints: HashMap<String, HashMap<HttpMethod, String>> =
+                let endpoints_by_method: HashMap<HttpMethod, HashMap<String, String>> =
                     server.endpoint_handlers.clone().into_values().fold(
                         HashMap::new(),
                         |mut acc,
@@ -93,16 +93,16 @@ pub fn server_system(
                              method,
                              handler,
                          }| {
-                            acc.entry(path).or_default().insert(method, handler);
+                            acc.entry(method).or_default().insert(path, handler);
                             acc
                         },
                     );
 
                 for message in message_queue {
                     let execution = match message.message {
-                        Message::Request(request) => match endpoints
-                            .get(&request.path)
-                            .and_then(|by_method| by_method.get(&request.method))
+                        Message::Request(request) => match endpoints_by_method
+                            .get(&request.method)
+                            .and_then(|endpoints_by_path| endpoints_by_path.get(&request.path))
                         {
                             Some(request_handler) => Some(ServerExecution::new(
                                 request_handler.clone(),
