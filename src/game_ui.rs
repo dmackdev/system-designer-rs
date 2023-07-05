@@ -189,19 +189,16 @@ impl View for Client {
                     });
             });
 
-            match config.method {
-                HttpMethod::Post => {
-                    ui.label("Body:");
-                    ui.add(
-                        egui::TextEdit::multiline(&mut config.body)
-                            .font(egui::TextStyle::Monospace) // for cursor height
-                            .code_editor()
-                            .desired_rows(10)
-                            .lock_focus(true)
-                            .desired_width(f32::INFINITY),
-                    );
-                }
-                _ => {}
+            if config.method == HttpMethod::Post {
+                ui.label("Body:");
+                ui.add(
+                    egui::TextEdit::multiline(&mut config.body)
+                        .font(egui::TextStyle::Monospace) // for cursor height
+                        .code_editor()
+                        .desired_rows(10)
+                        .lock_focus(true)
+                        .desired_width(f32::INFINITY),
+                );
             }
 
             if ui.button("Delete Request").clicked() {
