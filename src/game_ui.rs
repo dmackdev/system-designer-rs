@@ -5,7 +5,6 @@ use bevy_egui::{
 };
 use bevy_mod_picking::selection::PickSelection;
 use strum::IntoEnumIterator;
-use uuid::Uuid;
 
 use crate::{
     events::{AddComponentEvent, StartSimulationEvent},
@@ -228,15 +227,15 @@ impl View for Server {
         ui.heading("Endpoints");
         ui.separator();
 
-        let mut endpoint_ids_to_delete = vec![];
+        let mut endpoint_idx_to_delete = None;
 
-        for (id, endpoint) in self.endpoint_handlers.iter_mut() {
+        for (idx, endpoint) in self.endpoint_handlers.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.label("Path:");
                 ui.text_edit_singleline(&mut endpoint.path);
             });
 
-            egui::ComboBox::from_id_source(id)
+            egui::ComboBox::from_id_source(idx)
                 .selected_text(format_method(&endpoint.method))
                 .show_ui(ui, |ui| {
                     for method in HttpMethod::iter() {
@@ -245,7 +244,7 @@ impl View for Server {
                 });
 
             egui::CollapsingHeader::new("Request handler")
-                .id_source(id)
+                .id_source(idx)
                 .show(ui, |ui| {
                     ui.add(
                         egui::TextEdit::multiline(&mut endpoint.handler)
@@ -258,25 +257,22 @@ impl View for Server {
                 });
 
             if ui.button("Delete endpoint").clicked() {
-                endpoint_ids_to_delete.push(*id);
+                endpoint_idx_to_delete = Some(idx);
             }
 
             ui.separator();
         }
 
-        for id in endpoint_ids_to_delete.iter() {
-            self.endpoint_handlers.remove(id);
+        if let Some(idx) = endpoint_idx_to_delete {
+            self.endpoint_handlers.remove(idx);
         }
 
         if ui.button("Add endpoint").clicked() {
-            self.endpoint_handlers.insert(
-                Uuid::new_v4(),
-                Endpoint {
-                    path: "".to_string(),
-                    method: HttpMethod::Get,
-                    handler: "".to_string(),
-                },
-            );
+            self.endpoint_handlers.push(Endpoint {
+                path: "".to_string(),
+                method: HttpMethod::Get,
+                handler: "".to_string(),
+            });
         }
     }
 }

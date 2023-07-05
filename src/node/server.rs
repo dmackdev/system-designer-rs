@@ -11,7 +11,7 @@ use super::{client::HttpMethod, Hostname, NodeConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
-    pub endpoint_handlers: HashMap<Uuid, Endpoint>,
+    pub endpoint_handlers: Vec<Endpoint>,
     pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
     active_executions: HashMap<Uuid, ServerExecution>,
@@ -35,14 +35,11 @@ impl Default for Server {
             message_queue: Default::default(),
             state: Default::default(),
             active_executions: Default::default(),
-            endpoint_handlers: HashMap::from_iter([(
-                Uuid::new_v4(),
-                Endpoint {
-                    path: "/".to_string(),
-                    method: HttpMethod::Get,
-                    handler: EXAMPLE_REQUEST_HANDLER.to_string(),
-                },
-            )]),
+            endpoint_handlers: vec![Endpoint {
+                path: "/".to_string(),
+                method: HttpMethod::Get,
+                handler: EXAMPLE_REQUEST_HANDLER.to_string(),
+            }],
         }
     }
 }
@@ -89,7 +86,7 @@ pub fn server_system(
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
                 let endpoints_by_method: HashMap<HttpMethod, HashMap<String, String>> =
-                    server.endpoint_handlers.clone().into_values().fold(
+                    server.endpoint_handlers.clone().into_iter().fold(
                         HashMap::new(),
                         |mut acc,
                          Endpoint {
