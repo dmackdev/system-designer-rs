@@ -281,3 +281,104 @@ pub enum YieldValue {
     Response(Response),
     Request(Request),
 }
+
+type PathWithParams = (String, HashMap<String, String>);
+
+fn map_url_to_path_with_params(
+    url: String,
+    endpoints_paths: Vec<String>,
+) -> Option<PathWithParams> {
+    let url_segments: Vec<_> = url.split('/').collect();
+    for endpoint_path in endpoints_paths.iter() {
+        let endpoint_segments: Vec<_> = endpoint_path.split('/').collect();
+
+        if url_segments.len() != endpoint_segments.len() {
+            continue;
+        }
+
+        let mut params: HashMap<String, String> = HashMap::new();
+
+        for (idx, (url_segment, endpoint_segment)) in url_segments
+            .iter()
+            .zip(endpoint_segments.iter())
+            .enumerate()
+        {
+            if endpoint_segment.starts_with(':') {
+                params.insert(
+                    endpoint_segment.strip_prefix(':').unwrap().to_string(),
+                    url_segment.to_string(),
+                );
+            } else if url_segment != endpoint_segment {
+                params.clear();
+                break;
+            }
+
+            if idx == url_segments.len() - 1 {
+                return Some((endpoint_path.to_string(), params));
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn should_return_matching_path_with_single_param() {
+        let url = "/orders/1".to_string();
+        let endpoints_paths: Vec<String> = vec![
+            "/orders".to_string(),
+            "/orders/:id".to_string(),
+            "/orders/:id/items".to_string(),
+            "/users".to_string(),
+            "/users/:id".to_string(),
+            "/users/:id/messages".to_string(),
+        ];
+
+        assert_eq!(
+            Some((
+                "/orders/:id".to_string(),
+                HashMap::from_iter([("id".to_string(), "1".to_string())])
+            )),
+            map_url_to_path_with_params(url, endpoints_paths)
+        )
+    }
+
+    #[test]
+    fn should_return_matching_path_with_multiple_params() {
+        let url = "/orders/123/items/456".to_string();
+        let endpoints_paths: Vec<String> = vec![
+            "/orders".to_string(),
+            "/orders/:orderId".to_string(),
+            "/orders/:orderId/items".to_string(),
+            "/orders/:orderId/items/:itemId".to_string(),
+            "/orders/:orderId/items/:itemId/id".to_string(),
+        ];
+
+        assert_eq!(
+            Some((
+                "/orders/:orderId/items/:itemId".to_string(),
+                HashMap::from_iter([
+                    ("orderId".to_string(), "123".to_string()),
+                    ("itemId".to_string(), "456".to_string())
+                ])
+            )),
+            map_url_to_path_with_params(url, endpoints_paths)
+        )
+    }
+
+    #[test]
+    fn should_return_none_for_no_matching_path() {
+        let url = "/users/123".to_string();
+        let endpoints_paths: Vec<String> = vec![
+            "/users".to_string(),
+            "/users/:userId/messages".to_string(),
+            "/orders/:orderId/items".to_string(),
+            "/orders/:orderId/items/:itemId".to_string(),
+        ];
+
+        assert_eq!(None, map_url_to_path_with_params(url, endpoints_paths))
+    }
+}
