@@ -100,18 +100,27 @@ pub fn server_system(
 
                 for message in message_queue {
                     let execution = match message.message {
-                        Message::Request(request) => match endpoints_by_method
+                        Message::Request(request) => endpoints_by_method
                             .get(&request.method)
-                            .and_then(|endpoints_by_path| endpoints_by_path.get(&request.path))
-                        {
-                            Some(request_handler) => Some(ServerExecution::new(
-                                request_handler.clone(),
-                                request,
-                                message.sender,
-                                message.trace_id,
-                            )),
-                            None => None,
-                        },
+                            .and_then(|endpoints_by_path| {
+                                map_url_to_path_with_params(
+                                    &request.path,
+                                    endpoints_by_path.keys().collect(),
+                                )
+                            })
+                            .map(|EndpointMatch { path, params }| {
+                                ServerExecution::new(
+                                    endpoints_by_method
+                                        .get(&request.method)
+                                        .unwrap()
+                                        .get(path)
+                                        .unwrap()
+                                        .to_string(),
+                                    request,
+                                    message.sender,
+                                    message.trace_id,
+                                )
+                            }),
                         Message::Response(response) => {
                             let mut execution =
                                 server.active_executions.remove(&message.trace_id).unwrap();
@@ -282,12 +291,16 @@ pub enum YieldValue {
     Request(Request),
 }
 
-type PathWithParams = (String, HashMap<String, String>);
+#[derive(PartialEq, Eq, Debug)]
+struct EndpointMatch<'a> {
+    path: &'a String,
+    params: HashMap<String, String>,
+}
 
-fn map_url_to_path_with_params(
-    url: String,
-    endpoints_paths: Vec<String>,
-) -> Option<PathWithParams> {
+fn map_url_to_path_with_params<'a>(
+    url: &str,
+    endpoints_paths: Vec<&'a String>,
+) -> Option<EndpointMatch<'a>> {
     let url_segments: Vec<_> = url.split('/').collect();
     for endpoint_path in endpoints_paths.iter() {
         let endpoint_segments: Vec<_> = endpoint_path.split('/').collect();
@@ -314,7 +327,10 @@ fn map_url_to_path_with_params(
             }
 
             if idx == url_segments.len() - 1 {
-                return Some((endpoint_path.to_string(), params));
+                return Some(EndpointMatch {
+                    path: endpoint_path,
+                    params,
+                });
             }
         }
     }
@@ -326,9 +342,25 @@ mod test {
     use super::*;
 
     #[test]
+    fn should_return_matching_path_and_empty_params_for_root() {
+        let url: &str = "/";
+        let endpoints_paths = ["/".to_string()];
+
+        let endpoints_paths: Vec<&String> = endpoints_paths.iter().collect();
+
+        assert_eq!(
+            Some(EndpointMatch {
+                path: &"/".to_string(),
+                params: HashMap::new()
+            }),
+            map_url_to_path_with_params(url, endpoints_paths)
+        )
+    }
+
+    #[test]
     fn should_return_matching_path_with_single_param() {
-        let url = "/orders/1".to_string();
-        let endpoints_paths: Vec<String> = vec![
+        let url: &str = "/orders/1";
+        let endpoints_paths = [
             "/orders".to_string(),
             "/orders/:id".to_string(),
             "/orders/:id/items".to_string(),
@@ -337,19 +369,21 @@ mod test {
             "/users/:id/messages".to_string(),
         ];
 
+        let endpoints_paths: Vec<&String> = endpoints_paths.iter().collect();
+
         assert_eq!(
-            Some((
-                "/orders/:id".to_string(),
-                HashMap::from_iter([("id".to_string(), "1".to_string())])
-            )),
+            Some(EndpointMatch {
+                path: &"/orders/:id".to_string(),
+                params: HashMap::from_iter([("id".to_string(), "1".to_string())])
+            }),
             map_url_to_path_with_params(url, endpoints_paths)
         )
     }
 
     #[test]
     fn should_return_matching_path_with_multiple_params() {
-        let url = "/orders/123/items/456".to_string();
-        let endpoints_paths: Vec<String> = vec![
+        let url: &str = "/orders/123/items/456";
+        let endpoints_paths = [
             "/orders".to_string(),
             "/orders/:orderId".to_string(),
             "/orders/:orderId/items".to_string(),
@@ -357,27 +391,31 @@ mod test {
             "/orders/:orderId/items/:itemId/id".to_string(),
         ];
 
+        let endpoints_paths: Vec<&String> = endpoints_paths.iter().collect();
+
         assert_eq!(
-            Some((
-                "/orders/:orderId/items/:itemId".to_string(),
-                HashMap::from_iter([
+            Some(EndpointMatch {
+                path: &"/orders/:orderId/items/:itemId".to_string(),
+                params: HashMap::from_iter([
                     ("orderId".to_string(), "123".to_string()),
                     ("itemId".to_string(), "456".to_string())
                 ])
-            )),
+            }),
             map_url_to_path_with_params(url, endpoints_paths)
         )
     }
 
     #[test]
     fn should_return_none_for_no_matching_path() {
-        let url = "/users/123".to_string();
-        let endpoints_paths: Vec<String> = vec![
+        let url: &str = "/users/123";
+        let endpoints_paths = [
             "/users".to_string(),
             "/users/:userId/messages".to_string(),
             "/orders/:orderId/items".to_string(),
             "/orders/:orderId/items/:itemId".to_string(),
         ];
+
+        let endpoints_paths: Vec<&String> = endpoints_paths.iter().collect();
 
         assert_eq!(None, map_url_to_path_with_params(url, endpoints_paths))
     }
