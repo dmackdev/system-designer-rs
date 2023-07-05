@@ -55,7 +55,6 @@ pub struct RequestConfig {
     pub path: String,
     pub method: HttpMethod,
     pub body: String,
-    pub params: Vec<(String, String)>,
 }
 
 #[derive(

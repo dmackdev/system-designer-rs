@@ -104,7 +104,7 @@ pub fn server_system(
 
                 for message in message_queue {
                     let execution = match message.message {
-                        Message::Request(request) => endpoints_by_method
+                        Message::Request(mut request) => endpoints_by_method
                             .get(&request.method)
                             .and_then(|endpoints_by_path| {
                                 map_url_to_path_with_params(
@@ -113,6 +113,7 @@ pub fn server_system(
                                 )
                             })
                             .map(|EndpointMatch { path, params }| {
+                                request.params = params;
                                 ServerExecution::new(
                                     endpoints_by_method
                                         .get(&request.method)

@@ -191,31 +191,6 @@ impl View for Client {
             });
 
             match config.method {
-                HttpMethod::Get => {
-                    ui.label("Params:");
-
-                    let mut params_idx_to_delete = None;
-
-                    for (idx, (id, val)) in config.params.iter_mut().enumerate() {
-                        ui.columns(2, |cols| {
-                            cols[0].horizontal(|ui| {
-                                if ui.button("x").clicked() {
-                                    params_idx_to_delete = Some(idx);
-                                }
-                                ui.text_edit_singleline(id);
-                            });
-                            cols[1].text_edit_singleline(val);
-                        });
-                    }
-
-                    if let Some(i) = params_idx_to_delete {
-                        config.params.remove(i);
-                    }
-
-                    if ui.button("Add Param").clicked() {
-                        config.params.push(("".to_string(), "".to_string()));
-                    }
-                }
                 HttpMethod::Post => {
                     ui.label("Body:");
                     ui.add(
@@ -227,6 +202,7 @@ impl View for Client {
                             .desired_width(f32::INFINITY),
                     );
                 }
+                _ => {}
             }
 
             if ui.button("Delete Request").clicked() {

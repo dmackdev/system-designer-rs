@@ -74,7 +74,7 @@ impl TryFrom<RequestConfig> for Request {
             path: value.path,
             method: value.method,
             body,
-            params: HashMap::from_iter(value.params),
+            params: HashMap::new(),
         })
     }
 }
