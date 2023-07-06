@@ -2,7 +2,7 @@ use bevy::prelude::{Component, IntoSystemAppConfigs, OnEnter, Plugin, Query};
 
 use crate::{
     game_state::GameState,
-    node::{client::Client, server::Server, SystemNodeTrait},
+    node::{client::Client, database::Database, server::Server, SystemNodeTrait},
 };
 
 pub struct SimulationPlugin;
@@ -10,7 +10,8 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(
-            (start::<Client>, start::<Server>).in_schedule(OnEnter(GameState::Simulate)),
+            (start::<Client>, start::<Server>, start::<Database>)
+                .in_schedule(OnEnter(GameState::Simulate)),
         );
     }
 }

@@ -3,9 +3,12 @@ use std::collections::{HashMap, VecDeque};
 use bevy::prelude::{warn, Bundle, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsValue};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
-use crate::message::{Message, MessageComponent, Request, Response, SendMessageEvent};
+use crate::message::{
+    DatabaseCall, Message, MessageComponent, Request, Response, SendMessageEvent,
+};
 
 use super::{client::HttpMethod, Hostname, NodeConnections, SystemNodeTrait};
 
@@ -25,7 +28,8 @@ pub struct Endpoint {
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
-  return response(200, "Ok");
+  const result = yield db.save("db1", request.body);
+  return response(200, result);
 }
 "#;
 
@@ -131,6 +135,17 @@ pub fn server_system(
 
                             Some(execution)
                         }
+                        Message::DatabaseAnswer(answer) => {
+                            let mut execution =
+                                server.active_executions.remove(&message.trace_id).unwrap();
+
+                            execution
+                                .yield_values
+                                .push(YieldValue::DatabaseAnswer(answer));
+
+                            Some(execution)
+                        }
+                        _ => None,
                     };
 
                     if let Some(mut execution) = execution {
@@ -160,6 +175,26 @@ pub fn server_system(
                                             sender: server_entity,
                                             recipients: vec![recipient],
                                             message: Message::Request(new_request),
+                                            trace_id: new_trace_id,
+                                        });
+
+                                        server.active_executions.insert(new_trace_id, execution);
+                                    }
+                                }
+                            }
+                            (false, YieldValue::DatabaseCall(database_call)) => {
+                                let new_trace_id = Uuid::new_v4();
+
+                                let recipient = hostnames
+                                    .iter()
+                                    .find(|(_, node_name)| node_name.0 == database_call.name);
+
+                                if let Some((recipient, _)) = recipient {
+                                    if connections.is_connected_to(recipient) {
+                                        events.send(SendMessageEvent {
+                                            sender: server_entity,
+                                            recipients: vec![recipient],
+                                            message: Message::DatabaseCall(database_call),
                                             trace_id: new_trace_id,
                                         });
 
@@ -228,13 +263,13 @@ const http = {
 
         context.eval(http_script).unwrap();
 
-        let insert_db_script = r#"
-function insertDb(db, values) {
-  return { Db: { Insert: { db_name: db, values }}};
-}
+        let db_save_script = r#"
+const db = {
+  save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } }
+};
           "#;
 
-        context.eval(insert_db_script).unwrap();
+        context.eval(db_save_script).unwrap();
 
         let response_script = r#"
 function response(status, data) {
@@ -291,6 +326,8 @@ pub struct GeneratorResultValue {
 pub enum YieldValue {
     Response(Response),
     Request(Request),
+    DatabaseCall(DatabaseCall),
+    DatabaseAnswer(Value),
 }
 
 #[derive(PartialEq, Eq, Debug)]

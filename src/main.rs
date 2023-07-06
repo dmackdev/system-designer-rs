@@ -7,7 +7,7 @@ use game_state::{GameState, GameStatePlugin};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
 use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
-use node::{client::client_system, server::server_system};
+use node::{client::client_system, database::database_system, server::server_system};
 use simulation::SimulationPlugin;
 
 mod color;
@@ -55,7 +55,7 @@ fn main() {
         .add_plugins(DefaultPickingPlugins);
 
     app.add_startup_system(setup);
-    app.add_systems((client_system, server_system));
+    app.add_systems((client_system, server_system, database_system));
 
     app.run();
 }

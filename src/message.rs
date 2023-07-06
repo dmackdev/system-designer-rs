@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::node::{
     client::{Client, HttpMethod, RequestConfig},
+    database::Database,
     server::Server,
     SystemNodeTrait,
 };
@@ -31,7 +32,11 @@ impl Plugin for MessagePlugin {
         );
 
         app.add_systems(
-            (handle_message_for::<Client>, handle_message_for::<Server>)
+            (
+                handle_message_for::<Client>,
+                handle_message_for::<Server>,
+                handle_message_for::<Database>,
+            )
                 .in_set(MessageArrivedEventSet),
         );
     }
@@ -49,6 +54,8 @@ pub struct MessageComponent {
 pub enum Message {
     Request(Request),
     Response(Response),
+    DatabaseCall(DatabaseCall),
+    DatabaseAnswer(Value),
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
@@ -92,6 +99,18 @@ impl Response {
             data: Value::String("Not found".to_string()),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct DatabaseCall {
+    pub name: String,
+    pub call_type: DatabaseCallType,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum DatabaseCallType {
+    Save(Value),
+    FindOne(String),
 }
 
 pub struct SendMessageEvent {
