@@ -11,7 +11,7 @@ use crate::{
     game_state::GameState,
     node::{
         client::{Client, HttpMethod, RequestConfig},
-        database::{ColumnSchema, DataType, Database},
+        database::Database,
         server::{Endpoint, Server},
         Hostname, NodeName, NodeType,
     },
@@ -280,52 +280,9 @@ impl View for Server {
     }
 }
 
-fn format_data_type(data_type: &DataType) -> String {
-    data_type.to_string().to_ascii_uppercase()
-}
-
 impl View for Database {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.separator();
-        ui.heading("Schema");
-
-        egui::Grid::new("database_schema")
-            .min_col_width(100.)
-            .show(ui, |ui| {
-                ui.label("Column Name");
-                ui.label("Type");
-                ui.end_row();
-
-                let mut schema_idx_to_delete = None;
-                for (idx, column_schema) in self.schema.iter_mut().enumerate() {
-                    ui.text_edit_singleline(&mut column_schema.name);
-
-                    egui::ComboBox::from_id_source(idx)
-                        .selected_text(format_data_type(&column_schema.data_type))
-                        .show_ui(ui, |ui| {
-                            for data_type in DataType::iter() {
-                                ui.selectable_value(
-                                    &mut column_schema.data_type,
-                                    data_type,
-                                    format_data_type(&data_type),
-                                );
-                            }
-                        });
-
-                    if idx != 0 && ui.button("x").clicked() {
-                        schema_idx_to_delete = Some(idx);
-                    }
-
-                    ui.end_row();
-                }
-
-                if let Some(idx) = schema_idx_to_delete {
-                    self.schema.remove(idx);
-                }
-
-                if ui.button("+").clicked() {
-                    self.schema.push(ColumnSchema::default());
-                }
-            });
+        ui.heading("Documents");
     }
 }
