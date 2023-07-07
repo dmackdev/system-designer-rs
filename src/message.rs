@@ -72,8 +72,8 @@ impl TryFrom<RequestConfig> for Request {
 
     fn try_from(value: RequestConfig) -> Result<Self, Self::Error> {
         let body = match value.method {
-            HttpMethod::Get => Value::Null,
-            HttpMethod::Post => serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
+            HttpMethod::Get | HttpMethod::Delete => Value::Null,
+            HttpMethod::Post | HttpMethod::Put => serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
         };
 
         Ok(Self {

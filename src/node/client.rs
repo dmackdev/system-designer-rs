@@ -74,6 +74,8 @@ pub enum HttpMethod {
     #[default]
     Get,
     Post,
+    Put,
+    Delete,
 }
 
 #[derive(Clone, Debug, Default)]

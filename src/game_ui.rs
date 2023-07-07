@@ -195,7 +195,7 @@ impl View for Client {
                     });
             });
 
-            if config.method == HttpMethod::Post {
+            if config.method == HttpMethod::Post || config.method == HttpMethod::Put {
                 ui.label("Body:");
                 ui.add(
                     egui::TextEdit::multiline(&mut config.body)
