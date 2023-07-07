@@ -436,7 +436,6 @@ fn map_url_to_path_with_params<'a>(
                     url_segment.to_string(),
                 );
             } else if url_segment != endpoint_segment {
-                params.clear();
                 break;
             }
 
