@@ -41,6 +41,10 @@ impl Database {
     fn contains(&self, id: i32) -> bool {
         self.documents.contains_key(&id)
     }
+
+    fn delete(&mut self, id: i32) {
+        self.documents.remove(&id);
+    }
 }
 
 #[derive(Bundle, Default)]
@@ -127,6 +131,16 @@ pub fn database_system(
                                 sender: database_entity,
                                 recipients: vec![message.sender],
                                 message: Message::DatabaseAnswer(Value::from(contains)),
+                                trace_id: message.trace_id,
+                            });
+                        }
+                        DatabaseCallType::Delete(id) => {
+                            database.delete(id as i32);
+
+                            events.send(SendMessageEvent {
+                                sender: database_entity,
+                                recipients: vec![message.sender],
+                                message: Message::DatabaseAnswer(Value::Null),
                                 trace_id: message.trace_id,
                             });
                         }

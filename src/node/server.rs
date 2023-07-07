@@ -270,7 +270,8 @@ const db = {
   save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } },
   findOne: function(name, id) { return { DatabaseCall: { name, call_type: { FindOne: id } } } },
   findAll: function(name) { return { DatabaseCall: { name, call_type: "FindAll" } } },
-  contains: function(name, id) { return { DatabaseCall: { name, call_type: { Contains: id } } } }
+  contains: function(name, id) { return { DatabaseCall: { name, call_type: { Contains: id } } } },
+  delete: function(name, id) { return { DatabaseCall: { name, call_type: { Delete: id } } } }
 };
           "#;
 

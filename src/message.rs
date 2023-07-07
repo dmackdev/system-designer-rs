@@ -113,6 +113,7 @@ pub enum DatabaseCallType {
     FindOne(f32),
     FindAll,
     Contains(f32),
+    Delete(f32),
 }
 
 pub struct SendMessageEvent {
