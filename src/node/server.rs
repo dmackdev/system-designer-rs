@@ -268,7 +268,8 @@ const http = {
         let db_script = r#"
 const db = {
   save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } },
-  findOne: function(name, id) { return { DatabaseCall: { name, call_type: { FindOne: id } } } }
+  findOne: function(name, id) { return { DatabaseCall: { name, call_type: { FindOne: id } } } },
+  findAll: function(name) { return { DatabaseCall: { name, call_type: "FindAll" } } }
 };
           "#;
 

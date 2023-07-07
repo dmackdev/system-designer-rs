@@ -111,6 +111,7 @@ pub struct DatabaseCall {
 pub enum DatabaseCallType {
     Save(Value),
     FindOne(u16),
+    FindAll,
 }
 
 pub struct SendMessageEvent {

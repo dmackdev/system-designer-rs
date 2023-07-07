@@ -33,6 +33,10 @@ impl Database {
     fn find_one(&self, id: u16) -> Option<Document> {
         self.documents.get(&id).cloned()
     }
+
+    fn find_all(&self) -> Vec<Document> {
+        self.documents.values().cloned().collect()
+    }
 }
 
 #[derive(Bundle, Default)]
@@ -99,6 +103,16 @@ pub fn database_system(
                                 sender: database_entity,
                                 recipients: vec![message.sender],
                                 message: Message::DatabaseAnswer(Value::from(document)),
+                                trace_id: message.trace_id,
+                            });
+                        }
+                        DatabaseCallType::FindAll => {
+                            let documents = database.find_all();
+
+                            events.send(SendMessageEvent {
+                                sender: database_entity,
+                                recipients: vec![message.sender],
+                                message: Message::DatabaseAnswer(Value::from(documents)),
                                 trace_id: message.trace_id,
                             });
                         }
