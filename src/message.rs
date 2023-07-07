@@ -101,17 +101,18 @@ impl Response {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DatabaseCall {
     pub name: String,
     pub call_type: DatabaseCallType,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum DatabaseCallType {
     Save(Value),
-    FindOne(u16),
+    FindOne(f32),
     FindAll,
+    Contains(f32),
 }
 
 pub struct SendMessageEvent {

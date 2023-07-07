@@ -269,7 +269,8 @@ const http = {
 const db = {
   save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } },
   findOne: function(name, id) { return { DatabaseCall: { name, call_type: { FindOne: id } } } },
-  findAll: function(name) { return { DatabaseCall: { name, call_type: "FindAll" } } }
+  findAll: function(name) { return { DatabaseCall: { name, call_type: "FindAll" } } },
+  contains: function(name, id) { return { DatabaseCall: { name, call_type: { Contains: id } } } }
 };
           "#;
 
@@ -323,13 +324,13 @@ gen.next(lastGenResult);
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct GeneratorResultValue {
     pub done: bool,
     pub value: YieldValue,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum YieldValue {
     Response(Response),
     Request(Request),
@@ -398,6 +399,22 @@ mod test {
             Some(EndpointMatch {
                 path: &"/".to_string(),
                 params: HashMap::new()
+            }),
+            map_url_to_path_with_params(url, endpoints_paths)
+        )
+    }
+
+    #[test]
+    fn should_return_matching_path_with_single_param_after_root() {
+        let url: &str = "/1";
+        let endpoints_paths = ["/:id".to_string()];
+
+        let endpoints_paths: Vec<&String> = endpoints_paths.iter().collect();
+
+        assert_eq!(
+            Some(EndpointMatch {
+                path: &"/:id".to_string(),
+                params: HashMap::from_iter([("id".to_string(), "1".to_string())])
             }),
             map_url_to_path_with_params(url, endpoints_paths)
         )

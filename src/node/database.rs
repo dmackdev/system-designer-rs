@@ -11,7 +11,7 @@ type Document = Map<String, Value>;
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct Database {
-    pub documents: HashMap<u16, Document>,
+    pub documents: HashMap<i32, Document>,
     state: DatabaseState,
     message_queue: VecDeque<MessageComponent>,
 }
@@ -19,9 +19,9 @@ pub struct Database {
 impl Database {
     fn save(&mut self, mut doc: Document) -> Document {
         let id = match doc.get("id") {
-            Some(id) => id.as_u64().unwrap() as u16,
+            Some(id) => id.as_u64().unwrap() as i32,
             None => {
-                let id = self.documents.len() as u16;
+                let id = self.documents.len() as i32;
                 doc.insert("id".to_string(), Value::from(id));
                 id
             }
@@ -30,12 +30,16 @@ impl Database {
         doc
     }
 
-    fn find_one(&self, id: u16) -> Option<Document> {
+    fn find_one(&self, id: i32) -> Option<Document> {
         self.documents.get(&id).cloned()
     }
 
     fn find_all(&self) -> Vec<Document> {
         self.documents.values().cloned().collect()
+    }
+
+    fn contains(&self, id: i32) -> bool {
+        self.documents.contains_key(&id)
     }
 }
 
@@ -97,7 +101,7 @@ pub fn database_system(
                             }
                         }
                         DatabaseCallType::FindOne(id) => {
-                            let document = database.find_one(id);
+                            let document = database.find_one(id as i32);
 
                             events.send(SendMessageEvent {
                                 sender: database_entity,
@@ -113,6 +117,16 @@ pub fn database_system(
                                 sender: database_entity,
                                 recipients: vec![message.sender],
                                 message: Message::DatabaseAnswer(Value::from(documents)),
+                                trace_id: message.trace_id,
+                            });
+                        }
+                        DatabaseCallType::Contains(id) => {
+                            let contains = database.contains(id as i32);
+
+                            events.send(SendMessageEvent {
+                                sender: database_entity,
+                                recipients: vec![message.sender],
+                                message: Message::DatabaseAnswer(Value::from(contains)),
                                 trace_id: message.trace_id,
                             });
                         }
