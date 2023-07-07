@@ -131,7 +131,9 @@ pub fn server_system(
                             let mut execution =
                                 server.active_executions.remove(&message.trace_id).unwrap();
 
-                            execution.yield_values.push(YieldValue::Response(response));
+                            execution
+                                .yield_values
+                                .push(serde_json::to_value(response).unwrap());
 
                             Some(execution)
                         }
@@ -141,7 +143,7 @@ pub fn server_system(
 
                             execution
                                 .yield_values
-                                .push(YieldValue::DatabaseAnswer(answer));
+                                .push(serde_json::to_value(answer).unwrap());
 
                             Some(execution)
                         }
@@ -223,7 +225,7 @@ pub fn server_system(
 struct ServerExecution {
     request_handler: String,
     request: Request,
-    yield_values: Vec<YieldValue>,
+    yield_values: Vec<Value>,
     original_sender: Entity,
     original_trace_id: Uuid,
 }
@@ -296,10 +298,13 @@ gen.next();
             .unwrap();
 
         for prev_yield_value in self.yield_values.iter() {
-            let prev = serde_json::to_value(prev_yield_value).unwrap();
-            let prev = JsValue::from_json(&prev, &mut context).unwrap();
+            let prev_js_yield_value = JsValue::from_json(prev_yield_value, &mut context).unwrap();
 
-            context.register_global_property("lastGenResult", prev, Attribute::all());
+            context.register_global_property(
+                "lastGenResult",
+                prev_js_yield_value,
+                Attribute::all(),
+            );
 
             value = context
                 .eval(
