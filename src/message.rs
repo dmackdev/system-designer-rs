@@ -110,7 +110,7 @@ pub struct DatabaseCall {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum DatabaseCallType {
     Save(Value),
-    FindOne(String),
+    FindOne(u16),
 }
 
 pub struct SendMessageEvent {

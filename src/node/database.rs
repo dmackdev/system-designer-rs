@@ -29,6 +29,10 @@ impl Database {
         self.documents.insert(id, doc.clone());
         doc
     }
+
+    fn find_one(&self, id: u16) -> Option<Document> {
+        self.documents.get(&id).cloned()
+    }
 }
 
 #[derive(Bundle, Default)]
@@ -88,7 +92,16 @@ pub fn database_system(
                                 Err(_) => todo!(),
                             }
                         }
-                        DatabaseCallType::FindOne(_) => {}
+                        DatabaseCallType::FindOne(id) => {
+                            let document = database.find_one(id);
+
+                            events.send(SendMessageEvent {
+                                sender: database_entity,
+                                recipients: vec![message.sender],
+                                message: Message::DatabaseAnswer(Value::from(document)),
+                                trace_id: message.trace_id,
+                            });
+                        }
                     }
                 }
             }

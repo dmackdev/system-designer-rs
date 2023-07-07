@@ -265,13 +265,14 @@ const http = {
 
         context.eval(http_script).unwrap();
 
-        let db_save_script = r#"
+        let db_script = r#"
 const db = {
-  save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } }
+  save: function(name, value) { return { DatabaseCall: { name, call_type: { Save: value } } } },
+  findOne: function(name, id) { return { DatabaseCall: { name, call_type: { FindOne: id } } } }
 };
           "#;
 
-        context.eval(db_save_script).unwrap();
+        context.eval(db_script).unwrap();
 
         let response_script = r#"
 function response(status, data) {
