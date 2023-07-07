@@ -384,6 +384,9 @@ gen.next(lastGenResult);
 
         let latest_value = value.to_json(&mut context)?;
 
+        println!("LATEST YIELD JS VALUE:");
+        println!("{:?}", latest_value);
+
         Ok(serde_json::from_value(latest_value).unwrap())
     }
 }
