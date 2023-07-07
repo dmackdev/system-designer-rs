@@ -48,6 +48,49 @@ impl Default for Server {
     }
 }
 
+impl Server {
+    fn create_execution_for_request(
+        &mut self,
+        mut request: Request,
+        original_sender: Entity,
+        original_trace_id: Uuid,
+    ) -> Option<ServerExecution> {
+        let endpoints_by_method: HashMap<HttpMethod, HashMap<String, String>> =
+            self.endpoint_handlers.clone().into_iter().fold(
+                HashMap::new(),
+                |mut acc,
+                 Endpoint {
+                     path,
+                     method,
+                     handler,
+                 }| {
+                    acc.entry(method).or_default().insert(path, handler);
+                    acc
+                },
+            );
+
+        endpoints_by_method
+            .get(&request.method)
+            .and_then(|endpoints_by_path| {
+                map_url_to_path_with_params(&request.path, endpoints_by_path.keys().collect())
+            })
+            .map(|EndpointMatch { path, params }| {
+                request.params = params;
+                ServerExecution::new(
+                    endpoints_by_method
+                        .get(&request.method)
+                        .unwrap()
+                        .get(path)
+                        .unwrap()
+                        .to_string(),
+                    request,
+                    original_sender,
+                    original_trace_id,
+                )
+            })
+    }
+}
+
 impl SystemNodeTrait for Server {
     fn start_simulation(&mut self) {
         self.state = ServerState::Active;
@@ -89,44 +132,13 @@ pub fn server_system(
 
                 let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
 
-                let endpoints_by_method: HashMap<HttpMethod, HashMap<String, String>> =
-                    server.endpoint_handlers.clone().into_iter().fold(
-                        HashMap::new(),
-                        |mut acc,
-                         Endpoint {
-                             path,
-                             method,
-                             handler,
-                         }| {
-                            acc.entry(method).or_default().insert(path, handler);
-                            acc
-                        },
-                    );
-
                 for message in message_queue {
                     let execution = match message.message {
-                        Message::Request(mut request) => endpoints_by_method
-                            .get(&request.method)
-                            .and_then(|endpoints_by_path| {
-                                map_url_to_path_with_params(
-                                    &request.path,
-                                    endpoints_by_path.keys().collect(),
-                                )
-                            })
-                            .map(|EndpointMatch { path, params }| {
-                                request.params = params;
-                                ServerExecution::new(
-                                    endpoints_by_method
-                                        .get(&request.method)
-                                        .unwrap()
-                                        .get(path)
-                                        .unwrap()
-                                        .to_string(),
-                                    request,
-                                    message.sender,
-                                    message.trace_id,
-                                )
-                            }),
+                        Message::Request(request) => server.create_execution_for_request(
+                            request,
+                            message.sender,
+                            message.trace_id,
+                        ),
                         Message::Response(response) => {
                             let mut execution =
                                 server.active_executions.remove(&message.trace_id).unwrap();
@@ -155,57 +167,73 @@ pub fn server_system(
 
                         println!("{:?}", res);
 
-                        match (res.done, res.value) {
-                            (true, YieldValue::Response(response)) => {
+                        match res {
+                            Ok(res) => {
+                                match (res.done, res.value) {
+                                    (true, YieldValue::Response(response)) => {
+                                        events.send(SendMessageEvent {
+                                            sender: server_entity,
+                                            recipients: vec![execution.original_sender],
+                                            message: Message::Response(response),
+                                            trace_id: execution.original_trace_id,
+                                        });
+                                    }
+                                    (false, YieldValue::Request(new_request)) => {
+                                        let new_trace_id = Uuid::new_v4();
+
+                                        let recipient = hostnames
+                                            .iter()
+                                            .find(|(_, node_name)| node_name.0 == new_request.url);
+
+                                        if let Some((recipient, _)) = recipient {
+                                            if connections.is_connected_to(recipient) {
+                                                events.send(SendMessageEvent {
+                                                    sender: server_entity,
+                                                    recipients: vec![recipient],
+                                                    message: Message::Request(new_request),
+                                                    trace_id: new_trace_id,
+                                                });
+
+                                                server
+                                                    .active_executions
+                                                    .insert(new_trace_id, execution);
+                                            }
+                                        }
+                                    }
+                                    (false, YieldValue::DatabaseCall(database_call)) => {
+                                        let new_trace_id = Uuid::new_v4();
+
+                                        let recipient = hostnames.iter().find(|(_, node_name)| {
+                                            node_name.0 == database_call.name
+                                        });
+
+                                        if let Some((recipient, _)) = recipient {
+                                            if connections.is_connected_to(recipient) {
+                                                events.send(SendMessageEvent {
+                                                    sender: server_entity,
+                                                    recipients: vec![recipient],
+                                                    message: Message::DatabaseCall(database_call),
+                                                    trace_id: new_trace_id,
+                                                });
+
+                                                server
+                                                    .active_executions
+                                                    .insert(new_trace_id, execution);
+                                            }
+                                        }
+                                    }
+                                    _ => warn!("Unexpected yield value"),
+                                };
+                            }
+                            Err(_) => {
                                 events.send(SendMessageEvent {
                                     sender: server_entity,
-                                    recipients: vec![execution.original_sender],
-                                    message: Message::Response(response),
-                                    trace_id: execution.original_trace_id,
+                                    recipients: vec![message.sender],
+                                    message: Message::Response(Response::server_error()),
+                                    trace_id: message.trace_id,
                                 });
                             }
-                            (false, YieldValue::Request(new_request)) => {
-                                let new_trace_id = Uuid::new_v4();
-
-                                let recipient = hostnames
-                                    .iter()
-                                    .find(|(_, node_name)| node_name.0 == new_request.url);
-
-                                if let Some((recipient, _)) = recipient {
-                                    if connections.is_connected_to(recipient) {
-                                        events.send(SendMessageEvent {
-                                            sender: server_entity,
-                                            recipients: vec![recipient],
-                                            message: Message::Request(new_request),
-                                            trace_id: new_trace_id,
-                                        });
-
-                                        server.active_executions.insert(new_trace_id, execution);
-                                    }
-                                }
-                            }
-                            (false, YieldValue::DatabaseCall(database_call)) => {
-                                let new_trace_id = Uuid::new_v4();
-
-                                let recipient = hostnames
-                                    .iter()
-                                    .find(|(_, node_name)| node_name.0 == database_call.name);
-
-                                if let Some((recipient, _)) = recipient {
-                                    if connections.is_connected_to(recipient) {
-                                        events.send(SendMessageEvent {
-                                            sender: server_entity,
-                                            recipients: vec![recipient],
-                                            message: Message::DatabaseCall(database_call),
-                                            trace_id: new_trace_id,
-                                        });
-
-                                        server.active_executions.insert(new_trace_id, execution);
-                                    }
-                                }
-                            }
-                            _ => warn!("Unexpected yield value"),
-                        };
+                        }
                     } else {
                         events.send(SendMessageEvent {
                             sender: server_entity,
@@ -230,6 +258,17 @@ struct ServerExecution {
     original_trace_id: Uuid,
 }
 
+#[derive(Debug)]
+enum ExecutionError {
+    JsError(JsValue),
+}
+
+impl From<JsValue> for ExecutionError {
+    fn from(value: JsValue) -> Self {
+        Self::JsError(value)
+    }
+}
+
 impl ServerExecution {
     fn new(
         request_handler: String,
@@ -249,7 +288,7 @@ impl ServerExecution {
     // Because we cannot store Context in a Bevy Component (it is not Send + Sync), we instead create
     // a fresh Context and apply all the previous yield values to the generator in turn,
     // in order to get the latest yield value.
-    fn execute(&mut self) -> GeneratorResultValue {
+    fn execute(&mut self) -> Result<GeneratorResultValue, ExecutionError> {
         let mut context = Context::default();
 
         let request = serde_json::to_value(&self.request).unwrap();
@@ -285,7 +324,7 @@ function response(status, data) {
 
         context.eval(response_script).unwrap();
 
-        context.eval(&self.request_handler).unwrap();
+        context.eval(&self.request_handler)?;
 
         let generator_setup = r#"
 const gen = requestHandler(request);
@@ -310,18 +349,16 @@ gen.next();
                 Attribute::all(),
             );
 
-            value = context
-                .eval(
-                    r#"
+            value = context.eval(
+                r#"
 gen.next(lastGenResult);
 "#,
-                )
-                .unwrap();
+            )?;
         }
 
-        let latest_value = value.to_json(&mut context).unwrap();
+        let latest_value = value.to_json(&mut context)?;
 
-        serde_json::from_value(latest_value).unwrap()
+        Ok(serde_json::from_value(latest_value).unwrap())
     }
 }
 

@@ -96,7 +96,14 @@ impl Response {
     pub fn not_found() -> Self {
         Self {
             status: 404,
-            data: Value::String("Not found".to_string()),
+            data: Value::String("Not found.".to_string()),
+        }
+    }
+
+    pub fn server_error() -> Self {
+        Self {
+            status: 500,
+            data: Value::String("Internal server error.".to_string()),
         }
     }
 }
