@@ -87,64 +87,42 @@ pub fn database_system(
 
             for message in message_queue {
                 if let Message::DatabaseCall(db_call) = message.message {
-                    match db_call.call_type {
+                    let db_answer_value = match db_call.call_type {
                         DatabaseCallType::Save(value) => {
                             let document = serde_json::from_value::<Document>(value);
 
                             match document {
                                 Ok(document) => {
                                     let saved_doc = database.save(document);
-                                    events.send(SendMessageEvent {
-                                        sender: database_entity,
-                                        recipients: vec![message.sender],
-                                        message: Message::DatabaseAnswer(Value::from(saved_doc)),
-                                        trace_id: message.trace_id,
-                                    });
+                                    Value::from(saved_doc)
                                 }
-                                Err(_) => todo!(),
+                                Err(_) => Value::Null, // TODO: Probably should wrap in a db result type to indicate if there was an error?
                             }
                         }
                         DatabaseCallType::FindOne(id) => {
                             let document = database.find_one(id as i32);
-
-                            events.send(SendMessageEvent {
-                                sender: database_entity,
-                                recipients: vec![message.sender],
-                                message: Message::DatabaseAnswer(Value::from(document)),
-                                trace_id: message.trace_id,
-                            });
+                            Value::from(document)
                         }
                         DatabaseCallType::FindAll => {
                             let documents = database.find_all();
-
-                            events.send(SendMessageEvent {
-                                sender: database_entity,
-                                recipients: vec![message.sender],
-                                message: Message::DatabaseAnswer(Value::from(documents)),
-                                trace_id: message.trace_id,
-                            });
+                            Value::from(documents)
                         }
                         DatabaseCallType::Contains(id) => {
                             let contains = database.contains(id as i32);
-
-                            events.send(SendMessageEvent {
-                                sender: database_entity,
-                                recipients: vec![message.sender],
-                                message: Message::DatabaseAnswer(Value::from(contains)),
-                                trace_id: message.trace_id,
-                            });
+                            Value::from(contains)
                         }
                         DatabaseCallType::Delete(id) => {
                             database.delete(id as i32);
-
-                            events.send(SendMessageEvent {
-                                sender: database_entity,
-                                recipients: vec![message.sender],
-                                message: Message::DatabaseAnswer(Value::Null),
-                                trace_id: message.trace_id,
-                            });
+                            Value::Null
                         }
-                    }
+                    };
+
+                    events.send(SendMessageEvent {
+                        sender: database_entity,
+                        recipients: vec![message.sender],
+                        message: Message::DatabaseAnswer(db_answer_value),
+                        trace_id: message.trace_id,
+                    });
                 }
             }
         }
