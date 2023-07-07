@@ -2,7 +2,12 @@ use bevy::prelude::{Component, IntoSystemAppConfigs, OnEnter, Plugin, Query};
 
 use crate::{
     game_state::GameState,
-    node::{client::Client, database::Database, server::Server, SystemNodeTrait},
+    node::{
+        client::{client_system, Client},
+        database::{database_system, Database},
+        server::{server_system, Server},
+        SystemNodeTrait,
+    },
 };
 
 pub struct SimulationPlugin;
@@ -13,6 +18,8 @@ impl Plugin for SimulationPlugin {
             (start::<Client>, start::<Server>, start::<Database>)
                 .in_schedule(OnEnter(GameState::Simulate)),
         );
+
+        app.add_systems((client_system, server_system, database_system));
     }
 }
 
