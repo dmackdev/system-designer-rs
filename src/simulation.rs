@@ -1,4 +1,6 @@
-use bevy::prelude::{Component, IntoSystemAppConfigs, OnEnter, Plugin, Query};
+use bevy::prelude::{
+    Component, IntoSystemAppConfigs, IntoSystemConfigs, OnEnter, OnUpdate, Plugin, Query,
+};
 
 use crate::{
     game_state::GameState,
@@ -19,7 +21,9 @@ impl Plugin for SimulationPlugin {
                 .in_schedule(OnEnter(GameState::Simulate)),
         );
 
-        app.add_systems((client_system, server_system, database_system));
+        app.add_systems(
+            (client_system, server_system, database_system).in_set(OnUpdate(GameState::Simulate)),
+        );
     }
 }
 
