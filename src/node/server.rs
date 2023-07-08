@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use bevy::prelude::{warn, Bundle, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsValue};
@@ -15,9 +15,14 @@ use super::{client::HttpMethod, Hostname, NodeConnections, SystemNodeTrait};
 #[derive(Component, Clone, Debug)]
 pub struct Server {
     pub endpoint_handlers: Vec<Endpoint>,
-    pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
+    /// Executions that have been started and yielded, and are waiting for a message to resume execution.
     active_executions: HashMap<Uuid, ServerExecution>,
+    /// Executions that are ready to be resumed or started for the first time.
+    pending_executions: Vec<ServerExecution>,
+    /// Errors that occured during or before (e.g. endpoint not found) execution.
+    /// The server will respond to the sender with a Response message.
+    pending_errors: Vec<(ExecutionError, Entity, Uuid)>,
 }
 
 #[derive(Clone, Debug)]
@@ -44,10 +49,11 @@ impl Default for Endpoint {
 impl Default for Server {
     fn default() -> Self {
         Self {
-            message_queue: Default::default(),
             state: Default::default(),
             active_executions: Default::default(),
             endpoint_handlers: vec![Endpoint::default()],
+            pending_executions: Default::default(),
+            pending_errors: Default::default(),
         }
     }
 }
@@ -104,7 +110,37 @@ impl SystemNodeTrait for Server {
         println!("HANDLING MESSAGE FOR SERVER:");
         println!("{:?}", message);
 
-        self.message_queue.push_back(message);
+        let handle_message_result = match message.message {
+            Message::Request(request) => self
+                .create_execution_for_request(request, message.sender, message.trace_id)
+                .ok_or(ExecutionError::NotFound),
+            Message::Response(response) => {
+                let mut execution = self.active_executions.remove(&message.trace_id).unwrap();
+
+                execution
+                    .yield_values
+                    .push(serde_json::to_value(response).unwrap());
+
+                Ok(execution)
+            }
+            Message::DatabaseAnswer(answer) => {
+                let mut execution = self.active_executions.remove(&message.trace_id).unwrap();
+
+                execution
+                    .yield_values
+                    .push(serde_json::to_value(answer).unwrap());
+
+                Ok(execution)
+            }
+            _ => Err(ExecutionError::BadRequest),
+        };
+
+        match handle_message_result {
+            Ok(execution) => self.pending_executions.push(execution),
+            Err(error) => self
+                .pending_errors
+                .push((error, message.sender, message.trace_id)),
+        };
     }
 }
 
@@ -130,145 +166,100 @@ pub fn server_system(
     for (server_entity, mut server, connections) in server_query.iter_mut() {
         match server.state {
             ServerState::Active => {
-                if server.message_queue.is_empty() {
-                    continue;
-                }
+                let execution_queue = server.pending_executions.drain(..).collect::<Vec<_>>();
 
-                let message_queue = server.message_queue.drain(..).collect::<Vec<_>>();
+                for execution in execution_queue {
+                    let res = execution.execute();
 
-                for message in message_queue {
-                    let handle_message_result = match message.message {
-                        Message::Request(request) => server
-                            .create_execution_for_request(request, message.sender, message.trace_id)
-                            .ok_or(ExecutionError::NotFound),
-                        Message::Response(response) => {
-                            let mut execution =
-                                server.active_executions.remove(&message.trace_id).unwrap();
+                    println!("{:?}", res);
 
-                            execution
-                                .yield_values
-                                .push(serde_json::to_value(response).unwrap());
-
-                            Ok(execution)
-                        }
-                        Message::DatabaseAnswer(answer) => {
-                            let mut execution =
-                                server.active_executions.remove(&message.trace_id).unwrap();
-
-                            execution
-                                .yield_values
-                                .push(serde_json::to_value(answer).unwrap());
-
-                            Ok(execution)
-                        }
-                        _ => Err(ExecutionError::BadRequest),
-                    };
-
-                    match handle_message_result {
-                        Ok(execution) => {
-                            let res = execution.execute();
-
-                            println!("{:?}", res);
-
-                            match res {
-                                Ok(res) => {
-                                    match (res.done, res.value) {
-                                        (true, YieldValue::Response(response)) => {
-                                            events.send(SendMessageEvent {
-                                                sender: server_entity,
-                                                recipients: vec![execution.original_sender],
-                                                message: Message::Response(response),
-                                                trace_id: execution.original_trace_id,
-                                            });
-                                        }
-                                        (false, YieldValue::Request(new_request)) => {
-                                            let new_trace_id = Uuid::new_v4();
-
-                                            let recipient =
-                                                hostnames.iter().find(|(_, node_name)| {
-                                                    node_name.0 == new_request.url
-                                                });
-
-                                            if let Some((recipient, _)) = recipient {
-                                                if connections.is_connected_to(recipient) {
-                                                    events.send(SendMessageEvent {
-                                                        sender: server_entity,
-                                                        recipients: vec![recipient],
-                                                        message: Message::Request(new_request),
-                                                        trace_id: new_trace_id,
-                                                    });
-
-                                                    server
-                                                        .active_executions
-                                                        .insert(new_trace_id, execution);
-                                                }
-                                            } else {
-                                                events.send(SendMessageEvent {
-                                                    sender: server_entity,
-                                                    recipients: vec![execution.original_sender],
-                                                    message: Message::Response(
-                                                        Response::internal_server_error(),
-                                                    ),
-                                                    trace_id: execution.original_trace_id,
-                                                });
-                                            }
-                                        }
-                                        (false, YieldValue::DatabaseCall(database_call)) => {
-                                            let recipient =
-                                                hostnames.iter().find(|(_, node_name)| {
-                                                    node_name.0 == database_call.name
-                                                });
-
-                                            if let Some((recipient, _)) = recipient {
-                                                if connections.is_connected_to(recipient) {
-                                                    let new_trace_id = Uuid::new_v4();
-
-                                                    events.send(SendMessageEvent {
-                                                        sender: server_entity,
-                                                        recipients: vec![recipient],
-                                                        message: Message::DatabaseCall(
-                                                            database_call,
-                                                        ),
-                                                        trace_id: new_trace_id,
-                                                    });
-
-                                                    server
-                                                        .active_executions
-                                                        .insert(new_trace_id, execution);
-                                                }
-                                            } else {
-                                                events.send(SendMessageEvent {
-                                                    sender: server_entity,
-                                                    recipients: vec![execution.original_sender],
-                                                    message: Message::Response(
-                                                        Response::internal_server_error(),
-                                                    ),
-                                                    trace_id: execution.original_trace_id,
-                                                });
-                                            }
-                                        }
-                                        _ => warn!("Unexpected yield value"),
-                                    };
-                                }
-                                Err(execution_error) => {
+                    match res {
+                        Ok(res) => {
+                            match (res.done, res.value) {
+                                (true, YieldValue::Response(response)) => {
                                     events.send(SendMessageEvent {
                                         sender: server_entity,
-                                        recipients: vec![message.sender],
-                                        message: Message::Response(execution_error.into()),
-                                        trace_id: message.trace_id,
+                                        recipients: vec![execution.original_sender],
+                                        message: Message::Response(response),
+                                        trace_id: execution.original_trace_id,
                                     });
                                 }
-                            }
+                                (false, YieldValue::Request(new_request)) => {
+                                    let new_trace_id = Uuid::new_v4();
+
+                                    let recipient = hostnames
+                                        .iter()
+                                        .find(|(_, node_name)| node_name.0 == new_request.url);
+
+                                    if let Some((recipient, _)) = recipient {
+                                        if connections.is_connected_to(recipient) {
+                                            events.send(SendMessageEvent {
+                                                sender: server_entity,
+                                                recipients: vec![recipient],
+                                                message: Message::Request(new_request),
+                                                trace_id: new_trace_id,
+                                            });
+
+                                            server
+                                                .active_executions
+                                                .insert(new_trace_id, execution);
+                                        }
+                                    } else {
+                                        server.pending_errors.push((
+                                            ExecutionError::UpstreamConnectionRefused,
+                                            execution.original_sender,
+                                            execution.original_trace_id,
+                                        ));
+                                    }
+                                }
+                                (false, YieldValue::DatabaseCall(database_call)) => {
+                                    let recipient = hostnames
+                                        .iter()
+                                        .find(|(_, node_name)| node_name.0 == database_call.name);
+
+                                    if let Some((recipient, _)) = recipient {
+                                        if connections.is_connected_to(recipient) {
+                                            let new_trace_id = Uuid::new_v4();
+
+                                            events.send(SendMessageEvent {
+                                                sender: server_entity,
+                                                recipients: vec![recipient],
+                                                message: Message::DatabaseCall(database_call),
+                                                trace_id: new_trace_id,
+                                            });
+
+                                            server
+                                                .active_executions
+                                                .insert(new_trace_id, execution);
+                                        }
+                                    } else {
+                                        server.pending_errors.push((
+                                            ExecutionError::UpstreamConnectionRefused,
+                                            execution.original_sender,
+                                            execution.original_trace_id,
+                                        ));
+                                    }
+                                }
+                                _ => warn!("Unexpected yield value"),
+                            };
                         }
                         Err(execution_error) => {
-                            events.send(SendMessageEvent {
-                                sender: server_entity,
-                                recipients: vec![message.sender],
-                                message: Message::Response(execution_error.into()),
-                                trace_id: message.trace_id,
-                            });
+                            server.pending_errors.push((
+                                execution_error,
+                                execution.original_sender,
+                                execution.original_trace_id,
+                            ));
                         }
-                    };
+                    }
+                }
+
+                for (error, sender, trace_id) in server.pending_errors.drain(..) {
+                    events.send(SendMessageEvent {
+                        sender: server_entity,
+                        recipients: vec![sender],
+                        message: Message::Response(error.into()),
+                        trace_id,
+                    });
                 }
             }
             _ => {}
@@ -285,23 +276,26 @@ struct ServerExecution {
     original_trace_id: Uuid,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum ExecutionError {
-    JsError(JsValue),
+    JsError,
+    UpstreamConnectionRefused,
     NotFound,
     BadRequest,
 }
 
 impl From<JsValue> for ExecutionError {
     fn from(value: JsValue) -> Self {
-        Self::JsError(value)
+        println!("{:?}", value);
+        Self::JsError
     }
 }
 
 impl From<ExecutionError> for Response {
     fn from(value: ExecutionError) -> Self {
         match value {
-            ExecutionError::JsError(_) => Response::internal_server_error(),
+            ExecutionError::JsError => Response::internal_server_error(),
+            ExecutionError::UpstreamConnectionRefused => Response::internal_server_error(),
             ExecutionError::NotFound => Response::not_found(),
             ExecutionError::BadRequest => Response::bad_request(),
         }
