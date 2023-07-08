@@ -10,9 +10,9 @@ use crate::{
     events::{AddComponentEvent, StartSimulationEvent},
     game_state::GameState,
     node::{
-        client::{Client, HttpMethod, RequestConfig},
+        client::{Client, ClientState, HttpMethod, RequestConfig},
         database::Database,
-        server::{Endpoint, Server},
+        server::{Endpoint, Server, ServerState},
         Hostname, NodeName, NodeType,
     },
 };
@@ -207,8 +207,20 @@ impl View for Client {
                 );
             }
 
-            if ui.button("Delete Request").clicked() {
+            if self.state == ClientState::SimulationNotStarted
+                && ui.button("Delete Request").clicked()
+            {
                 request_idx_to_delete = Some(idx);
+            } else if let Some(response) = &config.response {
+                ui.label("Response:");
+                let mut pretty_string = serde_json::to_string_pretty(&response).unwrap();
+
+                ui.add(
+                    egui::TextEdit::multiline(&mut pretty_string)
+                        .font(egui::TextStyle::Monospace)
+                        .code_editor()
+                        .desired_width(f32::INFINITY),
+                );
             }
 
             ui.separator();
@@ -218,7 +230,7 @@ impl View for Client {
             self.request_configs.remove(i);
         }
 
-        if ui.button("Add Request").clicked() {
+        if self.state == ClientState::SimulationNotStarted && ui.button("Add Request").clicked() {
             self.request_configs.push_back(RequestConfig::default());
         }
     }
@@ -259,7 +271,9 @@ impl View for Server {
                     );
                 });
 
-            if ui.button("Delete endpoint").clicked() {
+            if self.state == ServerState::SimulationNotStarted
+                && ui.button("Delete endpoint").clicked()
+            {
                 endpoint_idx_to_delete = Some(idx);
             }
 
@@ -270,7 +284,7 @@ impl View for Server {
             self.endpoint_handlers.remove(idx);
         }
 
-        if ui.button("Add endpoint").clicked() {
+        if self.state == ServerState::SimulationNotStarted && ui.button("Add endpoint").clicked() {
             self.endpoint_handlers.push(Endpoint {
                 path: "".to_string(),
                 method: HttpMethod::Get,

@@ -110,7 +110,7 @@ pub struct ServerBundle {
     hostname: Hostname,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ServerState {
     #[default]
     SimulationNotStarted,
