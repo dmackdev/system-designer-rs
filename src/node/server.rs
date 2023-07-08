@@ -198,6 +198,15 @@ pub fn server_system(
                                                         .active_executions
                                                         .insert(new_trace_id, execution);
                                                 }
+                                            } else {
+                                                events.send(SendMessageEvent {
+                                                    sender: server_entity,
+                                                    recipients: vec![execution.original_sender],
+                                                    message: Message::Response(
+                                                        Response::internal_server_error(),
+                                                    ),
+                                                    trace_id: execution.original_trace_id,
+                                                });
                                             }
                                         }
                                         (false, YieldValue::DatabaseCall(database_call)) => {
