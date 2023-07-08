@@ -201,7 +201,7 @@ impl View for Client {
                     egui::TextEdit::multiline(&mut config.body)
                         .font(egui::TextStyle::Monospace)
                         .code_editor()
-                        .desired_rows(10)
+                        .desired_rows(1)
                         .lock_focus(true)
                         .desired_width(f32::INFINITY),
                 );
@@ -265,7 +265,7 @@ impl View for Server {
                         egui::TextEdit::multiline(&mut endpoint.handler)
                             .font(egui::TextStyle::Monospace) // for cursor height
                             .code_editor()
-                            .desired_rows(10)
+                            .desired_rows(4)
                             .lock_focus(true)
                             .desired_width(f32::INFINITY),
                     );
@@ -303,18 +303,15 @@ impl View for Database {
         document_entries.sort_by_key(|e| e.0);
 
         let documents: Vec<_> = document_entries.iter().map(|e| e.1).collect();
-        let pretty_string = serde_json::to_string_pretty(&documents).unwrap();
-
-        // As per docs, do this so the TextEdit is not editable.
-        let mut text: &str = &pretty_string;
-
-        ui.add(
-            egui::TextEdit::multiline(&mut text)
-                .font(egui::TextStyle::Monospace)
-                .code_editor()
-                .desired_rows(10)
-                .lock_focus(true)
-                .desired_width(f32::INFINITY),
-        );
+        let mut pretty_string = serde_json::to_string_pretty(&documents).unwrap();
+        ui.add_enabled_ui(false, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut pretty_string)
+                    .font(egui::TextStyle::Monospace)
+                    .code_editor()
+                    .lock_focus(true)
+                    .desired_width(f32::INFINITY),
+            );
+        });
     }
 }
