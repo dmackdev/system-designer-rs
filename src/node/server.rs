@@ -371,13 +371,11 @@ const gen = requestHandler(request);
 
         context.eval(generator_setup).unwrap();
 
-        let mut value = context
-            .eval(
-                r#"
+        let mut value = context.eval(
+            r#"
 gen.next();
 "#,
-            )
-            .unwrap();
+        )?;
 
         for prev_yield_value in self.yield_values.iter() {
             let prev_js_yield_value = JsValue::from_json(prev_yield_value, &mut context).unwrap();
