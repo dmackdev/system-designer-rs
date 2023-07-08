@@ -316,6 +316,7 @@ fn pointer_up_node(
     mut events: EventReader<ListenedEvent<Up>>,
     mut nodes_query: Query<&mut NodeConnections>,
     mut node_connect_state: ResMut<NodeConnectState>,
+    node_types: Query<&NodeType>,
 ) {
     for pointer_up_event in events.iter() {
         if !matches!(pointer_up_event.button, PointerButton::Secondary) {
@@ -326,6 +327,14 @@ fn pointer_up_node(
             let end_node_entity = pointer_up_event.target;
 
             if start_node_entity == end_node_entity {
+                continue;
+            }
+
+            let start_node_type = node_types.get(start_node_entity).unwrap();
+            let end_node_type = node_types.get(end_node_entity).unwrap();
+
+            if !start_node_type.is_valid_connection(end_node_type) {
+                println!("INVALID CONNECTION");
                 continue;
             }
 

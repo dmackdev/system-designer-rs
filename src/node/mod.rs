@@ -35,7 +35,7 @@ pub trait SystemNodeTrait {
 #[derive(Component)]
 pub struct SystemNode;
 
-#[derive(Component, Clone, Debug, strum::Display)]
+#[derive(Component, Clone, Debug, strum::Display, PartialEq, Eq)]
 pub enum NodeType {
     Client,
     Server,
@@ -47,6 +47,16 @@ impl NodeType {
         let t = self.to_string().to_ascii_lowercase();
 
         format!("textures/system_components/{t}.png")
+    }
+
+    pub fn is_valid_connection(&self, other: &Self) -> bool {
+        match self {
+            NodeType::Client => [&NodeType::Server].contains(&other),
+            NodeType::Server => {
+                [&NodeType::Client, &NodeType::Server, &NodeType::Database].contains(&other)
+            }
+            NodeType::Database => [&NodeType::Server].contains(&other),
+        }
     }
 }
 
