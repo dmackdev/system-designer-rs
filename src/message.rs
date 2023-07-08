@@ -100,11 +100,8 @@ impl Response {
         }
     }
 
-    pub fn internal_server_error() -> Self {
-        Self {
-            status: 500,
-            data: Value::String("Internal server error.".to_string()),
-        }
+    pub fn internal_server_error(data: Value) -> Self {
+        Self { status: 500, data }
     }
 
     pub fn bad_request() -> Self {

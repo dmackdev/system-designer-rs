@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use bevy::prelude::{warn, Bundle, Component, Entity, EventWriter, Query};
-use boa_engine::{property::Attribute, Context, JsValue};
+use boa_engine::{property::Attribute, Context, JsResult, JsValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
@@ -207,7 +207,9 @@ pub fn server_system(
                                                     sender: server_entity,
                                                     recipients: vec![execution.original_sender],
                                                     message: Message::Response(
-                                                        Response::internal_server_error(),
+                                                        Response::internal_server_error(
+                                                            "Upstream request refused.".into(),
+                                                        ),
                                                     ),
                                                     trace_id: execution.original_trace_id,
                                                 });
@@ -241,7 +243,9 @@ pub fn server_system(
                                                     sender: server_entity,
                                                     recipients: vec![execution.original_sender],
                                                     message: Message::Response(
-                                                        Response::internal_server_error(),
+                                                        Response::internal_server_error(
+                                                            "Upstream request refused.".into(),
+                                                        ),
                                                     ),
                                                     trace_id: execution.original_trace_id,
                                                 });
@@ -287,23 +291,26 @@ struct ServerExecution {
 
 #[derive(Debug)]
 enum ExecutionError {
-    JsError(JsValue),
     NotFound,
     BadRequest,
+    InternalServerError(Value),
 }
 
-impl From<JsValue> for ExecutionError {
-    fn from(value: JsValue) -> Self {
-        Self::JsError(value)
+impl From<JsResult<Value>> for ExecutionError {
+    fn from(value: JsResult<Value>) -> Self {
+        match value {
+            Ok(value) => Self::InternalServerError(value),
+            Err(_) => Self::InternalServerError(Value::Null),
+        }
     }
 }
 
 impl From<ExecutionError> for Response {
     fn from(value: ExecutionError) -> Self {
         match value {
-            ExecutionError::JsError(_) => Response::internal_server_error(),
             ExecutionError::NotFound => Response::not_found(),
             ExecutionError::BadRequest => Response::bad_request(),
+            ExecutionError::InternalServerError(value) => Response::internal_server_error(value),
         }
     }
 }
@@ -363,7 +370,9 @@ function response(status, data) {
 
         context.eval(response_script).unwrap();
 
-        context.eval(&self.request_handler)?;
+        context
+            .eval(&self.request_handler)
+            .map_err(|error| error.to_json(&mut context))?;
 
         let generator_setup = r#"
 const gen = requestHandler(request);
@@ -371,11 +380,13 @@ const gen = requestHandler(request);
 
         context.eval(generator_setup).unwrap();
 
-        let mut value = context.eval(
-            r#"
+        let mut value = context
+            .eval(
+                r#"
 gen.next();
 "#,
-        )?;
+            )
+            .map_err(|error| error.to_json(&mut context))?;
 
         for prev_yield_value in self.yield_values.iter() {
             let prev_js_yield_value = JsValue::from_json(prev_yield_value, &mut context).unwrap();
@@ -386,14 +397,18 @@ gen.next();
                 Attribute::all(),
             );
 
-            value = context.eval(
-                r#"
+            value = context
+                .eval(
+                    r#"
 gen.next(lastGenResult);
 "#,
-            )?;
+                )
+                .map_err(|error| error.to_json(&mut context))?;
         }
 
-        let latest_value = value.to_json(&mut context)?;
+        let latest_value = value
+            .to_json(&mut context)
+            .map_err(|error| error.to_json(&mut context))?;
 
         println!("LATEST YIELD JS VALUE:");
         println!("{:?}", latest_value);
