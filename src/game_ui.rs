@@ -265,7 +265,7 @@ impl View for Server {
                         egui::TextEdit::multiline(&mut endpoint.handler)
                             .font(egui::TextStyle::Monospace) // for cursor height
                             .code_editor()
-                            .desired_rows(4)
+                            .desired_rows(1)
                             .lock_focus(true)
                             .desired_width(f32::INFINITY),
                     );
@@ -285,11 +285,7 @@ impl View for Server {
         }
 
         if self.state == ServerState::SimulationNotStarted && ui.button("Add endpoint").clicked() {
-            self.endpoint_handlers.push(Endpoint {
-                path: "".to_string(),
-                method: HttpMethod::Get,
-                handler: "".to_string(),
-            });
+            self.endpoint_handlers.push(Endpoint::default());
         }
     }
 }
@@ -309,6 +305,7 @@ impl View for Database {
                 egui::TextEdit::multiline(&mut pretty_string)
                     .font(egui::TextStyle::Monospace)
                     .code_editor()
+                    .desired_rows(1)
                     .lock_focus(true)
                     .desired_width(f32::INFINITY),
             );

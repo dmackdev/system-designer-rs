@@ -28,10 +28,18 @@ pub struct Endpoint {
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
-  const result = yield db.save("db1", request.body);
-  return response(200, result);
+  return response(200, "Ok");
+}"#;
+
+impl Default for Endpoint {
+    fn default() -> Self {
+        Self {
+            path: "/".to_string(),
+            method: HttpMethod::Post,
+            handler: EXAMPLE_REQUEST_HANDLER.to_string(),
+        }
+    }
 }
-"#;
 
 impl Default for Server {
     fn default() -> Self {
@@ -39,11 +47,7 @@ impl Default for Server {
             message_queue: Default::default(),
             state: Default::default(),
             active_executions: Default::default(),
-            endpoint_handlers: vec![Endpoint {
-                path: "/".to_string(),
-                method: HttpMethod::Get,
-                handler: EXAMPLE_REQUEST_HANDLER.to_string(),
-            }],
+            endpoint_handlers: vec![Endpoint::default()],
         }
     }
 }
