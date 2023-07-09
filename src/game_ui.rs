@@ -300,15 +300,14 @@ impl View for Database {
 
         let documents: Vec<_> = document_entries.iter().map(|e| e.1).collect();
         let mut pretty_string = serde_json::to_string_pretty(&documents).unwrap();
-        ui.add_enabled_ui(false, |ui| {
-            ui.add(
-                egui::TextEdit::multiline(&mut pretty_string)
-                    .font(egui::TextStyle::Monospace)
-                    .code_editor()
-                    .desired_rows(1)
-                    .lock_focus(true)
-                    .desired_width(f32::INFINITY),
-            );
-        });
+        ui.add(
+            egui::TextEdit::multiline(&mut pretty_string)
+                .interactive(false)
+                .font(egui::TextStyle::Monospace)
+                .code_editor()
+                .desired_rows(1)
+                .lock_focus(true)
+                .desired_width(f32::INFINITY),
+        );
     }
 }
