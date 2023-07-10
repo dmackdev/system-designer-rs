@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_mod_picking::{prelude::RaycastPickCamera, DefaultPickingPlugins};
 use bevy_prototype_lyon::prelude::*;
-use events::{AddComponentEvent, StartSimulationEvent};
-use game_state::{AppState, GameMode, GameStatePlugin};
+use events::AddComponentEvent;
+use game_state::{AppState, GameMode};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
 use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
@@ -47,7 +47,6 @@ fn main() {
         .build();
 
     app.add_event::<AddComponentEvent>();
-    app.add_event::<StartSimulationEvent>();
     app.add_event::<SendMessageEvent>();
     app.add_event::<MessageArrivedEvent>();
 
@@ -63,7 +62,6 @@ fn main() {
         .add_plugin(EguiPlugin)
         .add_plugin(GameUiPlugin)
         .add_plugin(GridPlugin)
-        .add_plugin(GameStatePlugin)
         .add_plugin(MessagePlugin)
         .add_plugin(SimulationPlugin)
         .add_plugins(DefaultPickingPlugins);

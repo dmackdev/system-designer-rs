@@ -7,7 +7,7 @@ use bevy_mod_picking::selection::PickSelection;
 use strum::IntoEnumIterator;
 
 use crate::{
-    events::{AddComponentEvent, StartSimulationEvent},
+    events::AddComponentEvent,
     game_state::{AppState, GameMode},
     node::{
         client::{Client, ClientState, HttpMethod, RequestConfig},
@@ -82,15 +82,15 @@ fn level_select_ui(mut contexts: EguiContexts, mut app_state: ResMut<NextState<A
 fn tools_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
-    mut start_sim: EventWriter<StartSimulationEvent>,
-    app_state: Res<State<AppState>>,
+    curr_app_state: Res<State<AppState>>,
+    mut app_state: ResMut<NextState<AppState>>,
 ) {
     let ctx = contexts.ctx_mut();
 
     egui::SidePanel::left("tools")
         .default_width(200.0)
         .show(ctx, |ui| {
-            ui.add_enabled_ui(app_state.0 == AppState::Edit, |ui| {
+            ui.add_enabled_ui(curr_app_state.0 == AppState::Edit, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.heading("Components");
 
@@ -109,7 +109,7 @@ fn tools_ui(
                     ui.heading("Simulation");
 
                     if ui.button("Execute").clicked() {
-                        start_sim.send(StartSimulationEvent);
+                        app_state.set(AppState::Simulate);
                     }
 
                     ui.allocate_space(ui.available_size());
