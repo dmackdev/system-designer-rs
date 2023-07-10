@@ -14,12 +14,13 @@ use bevy_prototype_lyon::{
 use crate::{
     color,
     events::AddComponentEvent,
-    game_state::GameState,
+    game_state::AppState,
     layer,
     node::{
         client::Client, database::DatabaseBundle, server::ServerBundle, NodeConnections, NodeType,
         SystemNodeBundle,
     },
+    EditSet,
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -37,9 +38,6 @@ struct DragEventSet;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct DragEndEventSet;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-struct EditModeSet;
-
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NodeConnectState>();
@@ -49,27 +47,25 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<Up>>();
         app.add_event::<ListenedEvent<Click>>();
 
-        app.configure_set(EditModeSet.run_if(in_state(GameState::Edit)));
-
         app.configure_set(
             DragEventSet
                 .run_if(on_event::<ListenedEvent<Drag>>())
-                .in_set(EditModeSet),
+                .in_set(EditSet),
         );
         app.configure_set(
             DragEndEventSet
                 .run_if(on_event::<ListenedEvent<DragEnd>>())
-                .in_set(EditModeSet),
+                .in_set(EditSet),
         );
 
-        app.add_system(spawn_grid.in_schedule(OnEnter(GameState::Edit)));
+        app.add_system(spawn_grid.in_schedule(OnEnter(AppState::Edit)));
 
         app.add_systems(
             (
                 add_system_component.run_if(on_event::<AddComponentEvent>()),
                 drag_start_node.run_if(on_event::<ListenedEvent<DragStart>>()),
             )
-                .in_set(EditModeSet),
+                .in_set(EditSet),
         );
 
         app.add_systems(
@@ -91,13 +87,13 @@ impl Plugin for GridPlugin {
             pointer_up_node
                 .run_if(on_event::<ListenedEvent<Up>>())
                 .before(drag_end_node)
-                .in_set(EditModeSet),
+                .in_set(EditSet),
         );
 
         app.add_system(
             remove_connection
                 .run_if(on_event::<ListenedEvent<Click>>())
-                .in_set(EditModeSet),
+                .in_set(EditSet),
         );
     }
 }

@@ -8,13 +8,14 @@ use strum::IntoEnumIterator;
 
 use crate::{
     events::{AddComponentEvent, StartSimulationEvent},
-    game_state::GameState,
+    game_state::{AppState, GameMode},
     node::{
         client::{Client, ClientState, HttpMethod, RequestConfig},
         database::Database,
         server::{Endpoint, Server, ServerState},
         Hostname, NodeName, NodeType,
     },
+    EditSet, MainMenuSet, SimulateSet,
 };
 
 use bevy::prelude::*;
@@ -26,27 +27,70 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((
+        app.add_system(main_menu_ui.in_set(MainMenuSet));
+        app.add_system(level_select_ui.in_set(OnUpdate(AppState::LevelSelect)));
+
+        let ui_systems = (
             tools_ui,
             node_inspector_ui::<Client>,
             node_inspector_ui::<Server>,
             node_inspector_ui::<Database>,
-        ));
+        );
+
+        app.add_systems(ui_systems.in_set(EditSet));
+        app.add_systems(ui_systems.in_set(SimulateSet));
     }
+}
+
+fn main_menu_ui(
+    mut contexts: EguiContexts,
+    mut app_state: ResMut<NextState<AppState>>,
+    mut game_mode: ResMut<NextState<GameMode>>,
+) {
+    let ctx = contexts.ctx_mut();
+
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.heading("System Architect");
+
+            if ui.button("Level Select").clicked() {
+                app_state.set(AppState::LevelSelect);
+            }
+
+            if ui.button("Sandbox Mode").clicked() {
+                app_state.set(AppState::Edit);
+                game_mode.set(GameMode::Sandbox);
+            }
+        });
+    });
+}
+
+fn level_select_ui(mut contexts: EguiContexts, mut app_state: ResMut<NextState<AppState>>) {
+    let ctx = contexts.ctx_mut();
+
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.heading("Levels");
+
+            if ui.button("Level 1").clicked() {
+                app_state.set(AppState::Edit);
+            }
+        });
+    });
 }
 
 fn tools_ui(
     mut contexts: EguiContexts,
     mut add_component_events: EventWriter<AddComponentEvent>,
     mut start_sim: EventWriter<StartSimulationEvent>,
-    game_state: Res<State<GameState>>,
+    app_state: Res<State<AppState>>,
 ) {
     let ctx = contexts.ctx_mut();
 
     egui::SidePanel::left("tools")
         .default_width(200.0)
         .show(ctx, |ui| {
-            ui.add_enabled_ui(game_state.0 == GameState::Edit, |ui| {
+            ui.add_enabled_ui(app_state.0 == AppState::Edit, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.heading("Components");
 
@@ -83,7 +127,7 @@ fn node_inspector_ui<T: View + Component>(
         Option<&mut Hostname>,
         &mut T,
     )>,
-    game_state: Res<State<GameState>>,
+    app_state: Res<State<AppState>>,
 ) {
     if let Some((_, mut node_name, mut node_type, hostname, mut node)) =
         nodes.iter_mut().find(|query| query.0.is_selected)
@@ -95,7 +139,7 @@ fn node_inspector_ui<T: View + Component>(
             &mut node_type,
             hostname,
             node.as_mut(),
-            game_state.0 == GameState::Edit,
+            app_state.0 == AppState::Edit,
         );
     }
 }

@@ -3,7 +3,7 @@ use bevy_egui::EguiPlugin;
 use bevy_mod_picking::{prelude::RaycastPickCamera, DefaultPickingPlugins};
 use bevy_prototype_lyon::prelude::*;
 use events::{AddComponentEvent, StartSimulationEvent};
-use game_state::{GameState, GameStatePlugin};
+use game_state::{AppState, GameMode, GameStatePlugin};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
 use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
@@ -19,6 +19,15 @@ mod layer;
 mod message;
 mod node;
 mod simulation;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct MainMenuSet;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct EditSet;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct SimulateSet;
 
 fn main() {
     let mut app = App::new();
@@ -42,7 +51,12 @@ fn main() {
     app.add_event::<SendMessageEvent>();
     app.add_event::<MessageArrivedEvent>();
 
-    app.add_state::<GameState>();
+    app.add_state::<AppState>();
+    app.add_state::<GameMode>();
+
+    app.configure_set(MainMenuSet.run_if(in_state(AppState::MainMenu)));
+    app.configure_set(EditSet.run_if(in_state(AppState::Edit)));
+    app.configure_set(SimulateSet.run_if(in_state(AppState::Simulate)));
 
     app.add_plugins(default)
         .add_plugin(ShapePlugin)

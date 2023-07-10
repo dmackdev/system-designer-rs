@@ -3,7 +3,7 @@ use bevy::prelude::{
 };
 
 use crate::{
-    game_state::GameState,
+    game_state::AppState,
     node::{
         client::{client_system, Client},
         database::{database_system, Database},
@@ -18,11 +18,11 @@ impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(
             (start::<Client>, start::<Server>, start::<Database>)
-                .in_schedule(OnEnter(GameState::Simulate)),
+                .in_schedule(OnEnter(AppState::Simulate)),
         );
 
         app.add_systems(
-            (client_system, server_system, database_system).in_set(OnUpdate(GameState::Simulate)),
+            (client_system, server_system, database_system).in_set(OnUpdate(AppState::Simulate)),
         );
     }
 }
