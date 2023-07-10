@@ -9,6 +9,7 @@ use strum::IntoEnumIterator;
 use crate::{
     events::AddComponentEvent,
     game_state::{AppState, GameMode},
+    level::{Level, LevelState},
     node::{
         client::{Client, ClientState, HttpMethod, RequestConfig},
         database::Database,
@@ -65,15 +66,26 @@ fn main_menu_ui(
     });
 }
 
-fn level_select_ui(mut contexts: EguiContexts, mut app_state: ResMut<NextState<AppState>>) {
+fn level_select_ui(
+    mut contexts: EguiContexts,
+    mut app_state: ResMut<NextState<AppState>>,
+    levels: Res<Assets<Level>>,
+    mut level_state: ResMut<LevelState>,
+) {
     let ctx = contexts.ctx_mut();
 
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.heading("Levels");
 
-            if ui.button("Level 1").clicked() {
-                app_state.set(AppState::Edit);
+            for (idx, _) in levels.iter().enumerate() {
+                let level_button_label = format!("Level {}", idx + 1);
+
+                if ui.button(level_button_label).clicked() {
+                    level_state.current_level = Some(idx);
+
+                    app_state.set(AppState::Edit);
+                }
             }
         });
     });

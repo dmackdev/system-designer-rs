@@ -16,11 +16,12 @@ use crate::{
     events::AddComponentEvent,
     game_state::AppState,
     layer,
+    level::{Level, LevelState},
     node::{
         client::Client, database::DatabaseBundle, server::ServerBundle, NodeConnections, NodeType,
         SystemNodeBundle,
     },
-    EditSet,
+    EditSet, Handles,
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -98,7 +99,15 @@ impl Plugin for GridPlugin {
     }
 }
 
-fn spawn_grid(mut commands: Commands) {
+fn spawn_grid(
+    mut commands: Commands,
+    levels: Res<Assets<Level>>,
+    handles: Res<Handles>,
+    level_state: Res<LevelState>,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands.spawn((
@@ -112,6 +121,24 @@ fn spawn_grid(mut commands: Commands) {
                 },
                 Fill::color(color::GRID),
             ));
+        }
+    }
+
+    if let Some(selected_level) = level_state.current_level {
+        let level = levels.get(&handles.levels[selected_level]).unwrap();
+
+        println!("{:?}", level);
+
+        for (x, y, request_configs) in level.clients.iter() {
+            create_component(
+                &mut commands,
+                &asset_server,
+                &mut meshes,
+                &mut materials,
+                NodeType::Client,
+                *x,
+                *y,
+            );
         }
     }
 }
@@ -130,42 +157,61 @@ fn add_system_component(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for event in add_component_events.into_iter() {
-        let node_type = &event.0;
+        let node_type = event.0;
 
-        let texture_path = node_type.get_texture_path();
-
-        let mut node_entity = commands.spawn((
-            MaterialMesh2dBundle {
-                mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-                transform: Transform::from_xyz(0.0, 0.0, layer::SYSTEM_COMPONENTS)
-                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_NODE_MESH_SCALE)),
-                material: materials.add(ColorMaterial::from(Color::NONE)),
-                ..default()
-            },
-            SystemNodeBundle::new(node_type.clone()),
-            OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
-            OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
-            OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
-            OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
-            PickableBundle::default(),
-            RaycastPickTarget::default(),
-        ));
-
-        node_entity.with_children(|builder| {
-            builder.spawn(SpriteBundle {
-                texture: asset_server.load(texture_path),
-                transform: Transform::default()
-                    .with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
-                ..default()
-            });
-        });
-
-        match node_type {
-            NodeType::Client => node_entity.insert(Client::new()),
-            NodeType::Server => node_entity.insert(ServerBundle::default()),
-            NodeType::Database => node_entity.insert(DatabaseBundle::default()),
-        };
+        create_component(
+            &mut commands,
+            &asset_server,
+            &mut meshes,
+            &mut materials,
+            node_type,
+            0.0,
+            0.0,
+        );
     }
+}
+
+fn create_component(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    node_type: NodeType,
+    x: f32,
+    y: f32,
+) {
+    let texture_path = node_type.get_texture_path();
+
+    let mut node_entity = commands.spawn((
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+            transform: Transform::from_xyz(x, y, layer::SYSTEM_COMPONENTS)
+                .with_scale(Vec3::splat(SYSTEM_COMPONENT_NODE_MESH_SCALE)),
+            material: materials.add(ColorMaterial::from(Color::NONE)),
+            ..default()
+        },
+        SystemNodeBundle::new(node_type),
+        OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
+        OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
+        OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),
+        OnPointer::<Up>::send_event::<ListenedEvent<Up>>(),
+        PickableBundle::default(),
+        RaycastPickTarget::default(),
+    ));
+
+    node_entity.with_children(|builder| {
+        builder.spawn(SpriteBundle {
+            texture: asset_server.load(texture_path),
+            transform: Transform::default().with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
+            ..default()
+        });
+    });
+
+    match node_type {
+        NodeType::Client => node_entity.insert(Client::new()),
+        NodeType::Server => node_entity.insert(ServerBundle::default()),
+        NodeType::Database => node_entity.insert(DatabaseBundle::default()),
+    };
 }
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {

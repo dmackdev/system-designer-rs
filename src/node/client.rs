@@ -63,7 +63,7 @@ impl SystemNodeTrait for Client {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct RequestConfig {
     pub url: String,
     pub path: String,

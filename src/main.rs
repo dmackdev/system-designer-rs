@@ -7,7 +7,7 @@ use events::AddComponentEvent;
 use game_state::{AppState, GameMode};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
-use level::Level;
+use level::{Level, LevelState};
 use loading::LoadingPlugin;
 use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
 
@@ -39,6 +39,8 @@ fn main() {
 
     app.insert_resource(ClearColor(color::BACKGROUND))
         .insert_resource(Msaa::Sample4);
+
+    app.init_resource::<LevelState>();
 
     let default = DefaultPlugins
         .set(WindowPlugin {

@@ -1,1 +1,13 @@
-Level()
+Level(
+  clients: [
+    (0.0, 0.0, [
+      RequestConfig(
+            url: "/",
+            path: "/",
+            method: Get,
+            body: "{}",
+            trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A"
+      )
+    ])
+  ]
+)

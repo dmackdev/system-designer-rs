@@ -35,7 +35,7 @@ pub trait SystemNodeTrait {
 #[derive(Component)]
 pub struct SystemNode;
 
-#[derive(Component, Clone, Debug, strum::Display, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, strum::Display, PartialEq, Eq)]
 pub enum NodeType {
     Client,
     Server,
