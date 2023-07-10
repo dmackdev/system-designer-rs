@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_egui::EguiPlugin;
 use bevy_mod_picking::{prelude::RaycastPickCamera, DefaultPickingPlugins};
 use bevy_prototype_lyon::prelude::*;
@@ -6,6 +7,8 @@ use events::AddComponentEvent;
 use game_state::{AppState, GameMode};
 use game_ui::GameUiPlugin;
 use grid::GridPlugin;
+use level::Level;
+use loading::LoadingPlugin;
 use message::{MessageArrivedEvent, MessagePlugin, SendMessageEvent};
 
 use simulation::SimulationPlugin;
@@ -16,6 +19,8 @@ mod game_state;
 mod game_ui;
 mod grid;
 mod layer;
+mod level;
+mod loading;
 mod message;
 mod node;
 mod simulation;
@@ -58,8 +63,10 @@ fn main() {
     app.configure_set(SimulateSet.run_if(in_state(AppState::Simulate)));
 
     app.add_plugins(default)
+        .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]))
         .add_plugin(ShapePlugin)
         .add_plugin(EguiPlugin)
+        .add_plugin(LoadingPlugin)
         .add_plugin(GameUiPlugin)
         .add_plugin(GridPlugin)
         .add_plugin(MessagePlugin)
@@ -73,4 +80,9 @@ fn main() {
 
 fn setup(mut commands: Commands) {
     commands.spawn((Camera2dBundle::default(), RaycastPickCamera::default()));
+}
+
+#[derive(Resource, Default)]
+pub struct Handles {
+    levels: Vec<Handle<Level>>,
 }
