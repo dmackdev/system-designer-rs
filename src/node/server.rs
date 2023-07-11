@@ -216,13 +216,21 @@ pub fn server_system(
                                             }
                                         }
                                         (false, YieldValue::DatabaseCall(database_call)) => {
-                                            let recipient =
-                                                hostnames.iter().find(|(_, node_name)| {
+                                            let recipient = hostnames
+                                                .iter()
+                                                .find(|(_, node_name)| {
                                                     node_name.0 == database_call.name
+                                                })
+                                                .and_then(|(recipient, _)| {
+                                                    if connections.is_connected_to(recipient) {
+                                                        Some(recipient)
+                                                    } else {
+                                                        None
+                                                    }
                                                 });
 
-                                            if let Some((recipient, _)) = recipient {
-                                                if connections.is_connected_to(recipient) {
+                                            match recipient {
+                                                Some(recipient) => {
                                                     let new_trace_id = Uuid::new_v4();
 
                                                     events.send(SendMessageEvent {
@@ -238,18 +246,19 @@ pub fn server_system(
                                                         .active_executions
                                                         .insert(new_trace_id, execution);
                                                 }
-                                            } else {
-                                                events.send(SendMessageEvent {
-                                                    sender: server_entity,
-                                                    recipients: vec![execution.original_sender],
-                                                    message: Message::Response(
-                                                        Response::internal_server_error(
-                                                            "Upstream request refused.".into(),
+                                                None => {
+                                                    events.send(SendMessageEvent {
+                                                        sender: server_entity,
+                                                        recipients: vec![execution.original_sender],
+                                                        message: Message::Response(
+                                                            Response::internal_server_error(
+                                                                "Upstream request refused.".into(),
+                                                            ),
                                                         ),
-                                                    ),
-                                                    trace_id: execution.original_trace_id,
-                                                });
-                                            }
+                                                        trace_id: execution.original_trace_id,
+                                                    });
+                                                }
+                                            };
                                         }
                                         _ => warn!("Unexpected yield value"),
                                     };
