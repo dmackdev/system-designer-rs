@@ -131,7 +131,7 @@ pub fn client_system(
 
                 if let Some((recipient, _)) = recipient {
                     if !client_connections.is_connected_to(recipient) {
-                        return;
+                        continue;
                     }
 
                     let trace_id = request_config.trace_id;
