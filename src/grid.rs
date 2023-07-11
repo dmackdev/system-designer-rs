@@ -1,7 +1,7 @@
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_mod_picking::{
     prelude::{
-        Click, Drag, DragEnd, DragStart, ListenedEvent, OnPointer, PointerButton,
+        Click, Drag, DragEnd, DragStart, IsPointerEvent, ListenedEvent, OnPointer, PointerButton,
         RaycastPickTarget, Up,
     },
     PickableBundle,
@@ -70,16 +70,13 @@ impl Plugin for GridPlugin {
         );
 
         app.add_systems(
-            (drag_node, update_connection_paths::<ListenedEvent<Drag>>)
+            (drag_node, update_connection_paths::<Drag>)
                 .chain()
                 .in_set(DragEventSet),
         );
 
         app.add_systems(
-            (
-                drag_end_node,
-                update_connection_paths::<ListenedEvent<DragEnd>>,
-            )
+            (drag_end_node, update_connection_paths::<DragEnd>)
                 .chain()
                 .in_set(DragEndEventSet),
         );
@@ -230,45 +227,20 @@ fn drag_node(
     }
 }
 
-trait PointerEventOnNode {
-    fn target(&self) -> Entity;
-    fn pointer_position(&self) -> Vec2;
-}
-
-impl PointerEventOnNode for ListenedEvent<Drag> {
-    fn target(&self) -> Entity {
-        self.target
-    }
-
-    fn pointer_position(&self) -> Vec2 {
-        self.pointer_location.position
-    }
-}
-
-impl PointerEventOnNode for ListenedEvent<DragEnd> {
-    fn target(&self) -> Entity {
-        self.target
-    }
-
-    fn pointer_position(&self) -> Vec2 {
-        self.pointer_location.position
-    }
-}
-
-fn update_connection_paths<E: PointerEventOnNode + Send + Sync + 'static>(
-    mut drag_event: EventReader<E>,
+fn update_connection_paths<E: IsPointerEvent>(
+    mut drag_event: EventReader<ListenedEvent<E>>,
     nodes_query: Query<(&Transform, &NodeConnections)>,
     mut path_query: Query<&mut Path, With<NodeConnectionLine>>,
     node_connect_state: Res<NodeConnectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera>>,
 ) {
     for drag_event in drag_event.iter() {
-        let (transform, node) = nodes_query.get(drag_event.target()).unwrap();
+        let (transform, node) = nodes_query.get(drag_event.target).unwrap();
 
         if let Some(line_in_progress_entity) = node_connect_state.line_in_progress_entity {
             let (camera, camera_transform) = camera_query.single();
             let mouse_pos = camera
-                .viewport_to_world_2d(camera_transform, drag_event.pointer_position())
+                .viewport_to_world_2d(camera_transform, drag_event.pointer_location.position)
                 .unwrap();
 
             if let Ok(mut path) = path_query.get_mut(line_in_progress_entity) {
