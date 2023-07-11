@@ -44,6 +44,7 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<DragEnd>>();
         app.add_event::<ListenedEvent<Up>>();
         app.add_event::<ListenedEvent<Click>>();
+        app.add_event::<ConnectionLineClickEvent>();
 
         app.configure_set(
             DragEventSet
@@ -87,7 +88,7 @@ impl Plugin for GridPlugin {
 
         app.add_system(
             remove_connection
-                .run_if(on_event::<ListenedEvent<Click>>())
+                .run_if(on_event::<ConnectionLineClickEvent>())
                 .in_set(EditSet),
         );
     }
@@ -373,7 +374,7 @@ fn pointer_up_node(
                     start_node_entity,
                     end_node_entity,
                 ))
-                .insert(OnPointer::<Click>::send_event::<ListenedEvent<Click>>())
+                .insert(OnPointer::<Click>::send_event::<ConnectionLineClickEvent>())
                 .insert(PickableBundle::default())
                 .insert(RaycastPickTarget::default());
 
@@ -382,15 +383,23 @@ fn pointer_up_node(
     }
 }
 
+struct ConnectionLineClickEvent(ListenedEvent<Click>);
+
+impl From<ListenedEvent<Click>> for ConnectionLineClickEvent {
+    fn from(value: ListenedEvent<Click>) -> Self {
+        Self(value)
+    }
+}
+
 fn remove_connection(
     mut commands: Commands,
-    mut events: EventReader<ListenedEvent<Click>>,
+    mut events: EventReader<ConnectionLineClickEvent>,
     connections: Query<&ConnectedNodeConnectionLine>,
     mut nodes: Query<&mut NodeConnections>,
 ) {
     for event in events.iter() {
-        if matches!(event.button, PointerButton::Secondary) {
-            let connection = connections.get(event.target).unwrap();
+        if matches!(event.0.button, PointerButton::Secondary) {
+            let connection = connections.get(event.0.target).unwrap();
 
             nodes
                 .get_mut(connection.0)
@@ -402,7 +411,7 @@ fn remove_connection(
                 .unwrap()
                 .remove_connection(connection.0);
 
-            commands.entity(event.target).despawn_recursive();
+            commands.entity(event.0.target).despawn_recursive();
         }
     }
 }
