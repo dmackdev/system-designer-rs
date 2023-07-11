@@ -9,6 +9,7 @@ use strum::IntoEnumIterator;
 use crate::{
     events::AddComponentEvent,
     game_state::{AppState, GameMode},
+    grid::DeleteNodeEvent,
     level::{Level, LevelState},
     node::{
         client::{Client, ClientState, HttpMethod, RequestConfig},
@@ -130,18 +131,21 @@ fn tools_ui(
         });
 }
 
+#[allow(clippy::complexity)]
 fn node_inspector_ui<T: View + Component>(
     mut contexts: EguiContexts,
     mut nodes: Query<(
         &PickSelection,
+        Entity,
         &mut NodeName,
         &mut NodeType,
         Option<&mut Hostname>,
         &mut T,
     )>,
     app_state: Res<State<AppState>>,
+    delete_node_event: EventWriter<DeleteNodeEvent>,
 ) {
-    if let Some((_, mut node_name, mut node_type, hostname, mut node)) =
+    if let Some((_, entity, mut node_name, mut node_type, hostname, mut node)) =
         nodes.iter_mut().find(|query| query.0.is_selected)
     {
         let ctx = contexts.ctx_mut();
@@ -152,10 +156,13 @@ fn node_inspector_ui<T: View + Component>(
             hostname,
             node.as_mut(),
             app_state.0 == AppState::Edit,
+            delete_node_event,
+            entity,
         );
     }
 }
 
+#[allow(clippy::complexity)]
 fn show_inspector<T: View>(
     ctx: &mut Context,
     node_name: &mut NodeName,
@@ -163,6 +170,8 @@ fn show_inspector<T: View>(
     hostname: Option<Mut<'_, Hostname>>,
     node: &mut T,
     enabled: bool,
+    mut delete_node_event: EventWriter<DeleteNodeEvent>,
+    entity: Entity,
 ) {
     egui::SidePanel::right("inspector")
         .default_width(200.0)
@@ -178,6 +187,11 @@ fn show_inspector<T: View>(
                     }
 
                     node.ui(ui);
+
+                    if enabled && ui.button("Delete node").clicked() {
+                        delete_node_event.send(DeleteNodeEvent(entity));
+                    }
+
                     ui.allocate_space(ui.available_size());
                 });
             });

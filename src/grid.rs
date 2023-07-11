@@ -1,4 +1,6 @@
-use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{
+    ecs::system::SystemParam, math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle,
+};
 use bevy_mod_picking::{
     prelude::{
         Click, Drag, DragEnd, DragStart, IsPointerEvent, ListenedEvent, OnPointer, PointerButton,
@@ -45,6 +47,7 @@ impl Plugin for GridPlugin {
         app.add_event::<ListenedEvent<Up>>();
         app.add_event::<ListenedEvent<Click>>();
         app.add_event::<ConnectionLineClickEvent>();
+        app.add_event::<DeleteNodeEvent>();
 
         app.configure_set(
             DragEventSet
@@ -89,6 +92,12 @@ impl Plugin for GridPlugin {
         app.add_system(
             remove_connection
                 .run_if(on_event::<ConnectionLineClickEvent>())
+                .in_set(EditSet),
+        );
+
+        app.add_system(
+            delete_node
+                .run_if(on_event::<DeleteNodeEvent>())
                 .in_set(EditSet),
         );
     }
@@ -210,6 +219,19 @@ fn create_component(
         }
     };
 }
+
+fn delete_node(
+    mut commands: Commands,
+    mut events: EventReader<DeleteNodeEvent>,
+    mut remove_connections: RemoveConnectionSystemParam,
+) {
+    for event in events.iter() {
+        remove_connections.remove_connections_by_node(event.0);
+        commands.entity(event.0).despawn_recursive();
+    }
+}
+
+pub struct DeleteNodeEvent(pub Entity);
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
@@ -392,26 +414,51 @@ impl From<ListenedEvent<Click>> for ConnectionLineClickEvent {
 }
 
 fn remove_connection(
-    mut commands: Commands,
     mut events: EventReader<ConnectionLineClickEvent>,
-    connections: Query<&ConnectedNodeConnectionLine>,
-    mut nodes: Query<&mut NodeConnections>,
+    mut remove_connections: RemoveConnectionSystemParam,
 ) {
     for event in events.iter() {
         if matches!(event.0.button, PointerButton::Secondary) {
-            let connection = connections.get(event.0.target).unwrap();
+            remove_connections.remove_connection_by_line(event.0.target);
+        }
+    }
+}
 
-            nodes
-                .get_mut(connection.0)
-                .unwrap()
-                .remove_connection(connection.1);
+#[derive(SystemParam)]
+struct RemoveConnectionSystemParam<'w, 's> {
+    commands: Commands<'w, 's>,
+    lines: Query<'w, 's, &'static ConnectedNodeConnectionLine>,
+    nodes: Query<'w, 's, &'static mut NodeConnections>,
+}
 
-            nodes
-                .get_mut(connection.1)
-                .unwrap()
-                .remove_connection(connection.0);
+impl<'w, 's> RemoveConnectionSystemParam<'w, 's> {
+    fn remove_connection_by_line(&mut self, line_entity: Entity) {
+        let connection = self.lines.get(line_entity).unwrap();
 
-            commands.entity(event.0.target).despawn_recursive();
+        self.nodes
+            .get_mut(connection.0)
+            .unwrap()
+            .remove_connection(connection.1);
+
+        self.nodes
+            .get_mut(connection.1)
+            .unwrap()
+            .remove_connection(connection.0);
+
+        self.commands.entity(line_entity).despawn_recursive();
+    }
+
+    fn remove_connections_by_node(&mut self, node_entity: Entity) {
+        let node_connections: Vec<_> = self
+            .nodes
+            .get(node_entity)
+            .unwrap()
+            .iter()
+            .map(|(_, line_entity)| *line_entity)
+            .collect();
+
+        for line_entity in node_connections.iter() {
+            self.remove_connection_by_line(*line_entity);
         }
     }
 }
