@@ -10,7 +10,7 @@ use crate::message::{
     DatabaseCall, Message, MessageComponent, Request, Response, SendMessageEvent,
 };
 
-use super::{client::HttpMethod, Hostname, NodeConnections, SystemNodeTrait};
+use super::{client::HttpMethod, Hostname, HostnameConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
@@ -123,11 +123,11 @@ pub enum ServerState {
 
 #[allow(clippy::single_match)]
 pub fn server_system(
-    mut server_query: Query<(Entity, &mut Server, &NodeConnections)>,
+    mut server_query: Query<(Entity, &mut Server)>,
     mut events: EventWriter<SendMessageEvent>,
-    hostnames: Query<(Entity, &Hostname)>,
+    hostname_connections: HostnameConnections,
 ) {
-    for (server_entity, mut server, connections) in server_query.iter_mut() {
+    for (server_entity, mut server) in server_query.iter_mut() {
         match server.state {
             ServerState::Active => {
                 if server.message_queue.is_empty() {
@@ -184,24 +184,23 @@ pub fn server_system(
                                         (false, YieldValue::Request(new_request)) => {
                                             let new_trace_id = Uuid::new_v4();
 
-                                            let recipient =
-                                                hostnames.iter().find(|(_, node_name)| {
-                                                    node_name.0 == new_request.url
+                                            let recipient = hostname_connections
+                                                .get_connected_entity_by_hostname(
+                                                    server_entity,
+                                                    &new_request.url,
+                                                );
+
+                                            if let Some(recipient) = recipient {
+                                                events.send(SendMessageEvent {
+                                                    sender: server_entity,
+                                                    recipients: vec![recipient],
+                                                    message: Message::Request(new_request),
+                                                    trace_id: new_trace_id,
                                                 });
 
-                                            if let Some((recipient, _)) = recipient {
-                                                if connections.is_connected_to(recipient) {
-                                                    events.send(SendMessageEvent {
-                                                        sender: server_entity,
-                                                        recipients: vec![recipient],
-                                                        message: Message::Request(new_request),
-                                                        trace_id: new_trace_id,
-                                                    });
-
-                                                    server
-                                                        .active_executions
-                                                        .insert(new_trace_id, execution);
-                                                }
+                                                server
+                                                    .active_executions
+                                                    .insert(new_trace_id, execution);
                                             } else {
                                                 events.send(SendMessageEvent {
                                                     sender: server_entity,
@@ -216,18 +215,11 @@ pub fn server_system(
                                             }
                                         }
                                         (false, YieldValue::DatabaseCall(database_call)) => {
-                                            let recipient = hostnames
-                                                .iter()
-                                                .find(|(_, node_name)| {
-                                                    node_name.0 == database_call.name
-                                                })
-                                                .and_then(|(recipient, _)| {
-                                                    if connections.is_connected_to(recipient) {
-                                                        Some(recipient)
-                                                    } else {
-                                                        None
-                                                    }
-                                                });
+                                            let recipient = hostname_connections
+                                                .get_connected_entity_by_hostname(
+                                                    server_entity,
+                                                    &database_call.name,
+                                                );
 
                                             match recipient {
                                                 Some(recipient) => {

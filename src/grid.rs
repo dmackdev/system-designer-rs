@@ -123,7 +123,7 @@ fn spawn_grid(
 
         println!("{:?}", level);
 
-        for (x, y, request_configs) in level.clients.iter() {
+        for (x, y, _request_configs) in level.clients.iter() {
             create_component(
                 &mut commands,
                 &asset_server,

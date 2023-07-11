@@ -1,6 +1,9 @@
 use std::collections::{hash_map::Iter, HashMap};
 
-use bevy::prelude::{Bundle, Component, Entity};
+use bevy::{
+    ecs::system::SystemParam,
+    prelude::{Bundle, Component, Entity, Query},
+};
 
 use crate::message::MessageComponent;
 
@@ -71,6 +74,31 @@ impl NodeName {
 
 #[derive(Default, Component)]
 pub struct Hostname(pub String);
+
+#[derive(SystemParam)]
+pub struct HostnameConnections<'w, 's> {
+    hostnames: Query<'w, 's, (Entity, &'static Hostname)>,
+    connections: Query<'w, 's, &'static NodeConnections>,
+}
+
+impl<'w, 's> HostnameConnections<'w, 's> {
+    pub fn get_connected_entity_by_hostname(
+        &self,
+        from: Entity,
+        to_name: &String,
+    ) -> Option<Entity> {
+        self.hostnames
+            .iter()
+            .find(|(_, node_name)| &node_name.0 == to_name)
+            .and_then(|(recipient, _)| {
+                self.connections
+                    .get(from)
+                    .unwrap()
+                    .is_connected_to(recipient)
+                    .then_some(recipient)
+            })
+    }
+}
 
 #[derive(Component)]
 pub struct NodeConnections {

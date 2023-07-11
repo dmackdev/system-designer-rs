@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::message::{Message, MessageComponent, Request, Response, SendMessageEvent};
 
-use super::{Hostname, NodeConnections, SystemNodeTrait};
+use super::{HostnameConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct Client {
@@ -117,23 +117,18 @@ pub enum ClientState {
 }
 
 pub fn client_system(
-    mut client_query: Query<(Entity, &mut Client, &NodeConnections)>,
-    hostnames: Query<(Entity, &Hostname)>,
+    mut client_query: Query<(Entity, &mut Client)>,
     mut events: EventWriter<SendMessageEvent>,
+    hostname_connections: HostnameConnections,
 ) {
-    for (client_entity, mut client, client_connections) in client_query.iter_mut() {
+    for (client_entity, mut client) in client_query.iter_mut() {
         if let ClientState::SendNextRequest = client.state {
             // Send first request
             if let Some(request_config) = client.request_configs.get(client.curr_request_idx) {
-                let recipient = hostnames
-                    .iter()
-                    .find(|(_, node_name)| node_name.0 == request_config.url);
+                let recipient = hostname_connections
+                    .get_connected_entity_by_hostname(client_entity, &request_config.url);
 
-                if let Some((recipient, _)) = recipient {
-                    if !client_connections.is_connected_to(recipient) {
-                        continue;
-                    }
-
+                if let Some(recipient) = recipient {
                     let trace_id = request_config.trace_id;
                     let request = Request::try_from(request_config).unwrap();
 
