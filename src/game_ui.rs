@@ -107,15 +107,15 @@ fn tools_ui(
                     ui.heading("Components");
 
                     if ui.button("Add Client").clicked() {
-                        add_component_events.send(AddComponentEvent(NodeType::Client));
+                        add_component_events.send(AddComponentEvent::new_client());
                     }
 
                     if ui.button("Add Server").clicked() {
-                        add_component_events.send(AddComponentEvent(NodeType::Server));
+                        add_component_events.send(AddComponentEvent::new_server());
                     }
 
                     if ui.button("Add Database").clicked() {
-                        add_component_events.send(AddComponentEvent(NodeType::Database));
+                        add_component_events.send(AddComponentEvent::new_database());
                     }
 
                     ui.heading("Simulation");

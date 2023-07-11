@@ -13,14 +13,11 @@ use bevy_prototype_lyon::{
 
 use crate::{
     color,
-    events::AddComponentEvent,
+    events::{AddComponentEvent, AddComponentPayload},
     game_state::AppState,
     layer,
     level::{Level, LevelState},
-    node::{
-        client::Client, database::DatabaseBundle, server::ServerBundle, NodeConnections, NodeType,
-        SystemNodeBundle,
-    },
+    node::{client::Client, Hostname, NodeConnections, NodeType, SystemNodeBundle},
     EditSet, Handles,
 };
 
@@ -132,7 +129,7 @@ fn spawn_grid(
                 &asset_server,
                 &mut meshes,
                 &mut materials,
-                NodeType::Client,
+                AddComponentPayload::Client(Client::new()),
                 *x,
                 *y,
             );
@@ -154,14 +151,14 @@ fn add_system_component(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for event in add_component_events.into_iter() {
-        let node_type = event.0;
+        let component = event.0.clone();
 
         create_component(
             &mut commands,
             &asset_server,
             &mut meshes,
             &mut materials,
-            node_type,
+            component,
             0.0,
             0.0,
         );
@@ -173,11 +170,11 @@ fn create_component(
     asset_server: &Res<AssetServer>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
-    node_type: NodeType,
+    component: AddComponentPayload,
     x: f32,
     y: f32,
 ) {
-    let texture_path = node_type.get_texture_path();
+    let node_type = component.get_node_type();
 
     let mut node_entity = commands.spawn((
         MaterialMesh2dBundle {
@@ -198,16 +195,18 @@ fn create_component(
 
     node_entity.with_children(|builder| {
         builder.spawn(SpriteBundle {
-            texture: asset_server.load(texture_path),
+            texture: asset_server.load(node_type.get_texture_path()),
             transform: Transform::default().with_scale(Vec3::splat(SYSTEM_COMPONENT_SPRITE_SCALE)),
             ..default()
         });
     });
 
-    match node_type {
-        NodeType::Client => node_entity.insert(Client::new()),
-        NodeType::Server => node_entity.insert(ServerBundle::default()),
-        NodeType::Database => node_entity.insert(DatabaseBundle::default()),
+    match component {
+        AddComponentPayload::Client(client) => node_entity.insert(client),
+        AddComponentPayload::Server(server) => node_entity.insert((server, Hostname::default())),
+        AddComponentPayload::Database(database) => {
+            node_entity.insert((database, Hostname::default()))
+        }
     };
 }
 
