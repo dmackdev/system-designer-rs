@@ -449,16 +449,10 @@ impl<'w, 's> RemoveConnectionSystemParam<'w, 's> {
     }
 
     fn remove_connections_by_node(&mut self, node_entity: Entity) {
-        let node_connections: Vec<_> = self
-            .nodes
-            .get(node_entity)
-            .unwrap()
-            .iter()
-            .map(|(_, line_entity)| *line_entity)
-            .collect();
+        let line_entities = self.nodes.get(node_entity).unwrap().line_entities();
 
-        for line_entity in node_connections.iter() {
-            self.remove_connection_by_line(*line_entity);
+        for line_entity in line_entities {
+            self.remove_connection_by_line(line_entity);
         }
     }
 }

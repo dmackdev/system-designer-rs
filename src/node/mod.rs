@@ -128,4 +128,8 @@ impl NodeConnections {
     pub fn iter(&self) -> Iter<Entity, Entity> {
         self.connections.iter()
     }
+
+    pub fn line_entities(&self) -> Vec<Entity> {
+        self.connections.values().cloned().collect()
+    }
 }
