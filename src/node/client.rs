@@ -14,13 +14,22 @@ pub struct Client {
     pub request_configs: VecDeque<RequestConfig>,
     pub state: ClientState,
     curr_request_idx: usize,
+    can_be_edited: bool,
 }
 
 impl Client {
     pub fn new() -> Self {
         Self {
             request_configs: VecDeque::from_iter([RequestConfig::default()]),
+            can_be_edited: true,
             ..Default::default()
+        }
+    }
+
+    pub fn new_non_editable() -> Self {
+        Self {
+            can_be_edited: false,
+            ..Client::new()
         }
     }
 }
@@ -60,6 +69,10 @@ impl SystemNodeTrait for Client {
         }
 
         println!("RECEIVED UNEXPECTED RESPONSE");
+    }
+
+    fn can_be_edited(&self) -> bool {
+        self.can_be_edited
     }
 }
 

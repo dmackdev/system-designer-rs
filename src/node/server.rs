@@ -18,6 +18,7 @@ pub struct Server {
     pub message_queue: VecDeque<MessageComponent>,
     pub state: ServerState,
     active_executions: HashMap<Uuid, ServerExecution>,
+    can_be_edited: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +49,7 @@ impl Default for Server {
             state: Default::default(),
             active_executions: Default::default(),
             endpoint_handlers: vec![Endpoint::default()],
+            can_be_edited: true,
         }
     }
 }
@@ -105,6 +107,10 @@ impl SystemNodeTrait for Server {
         println!("{:?}", message);
 
         self.message_queue.push_back(message);
+    }
+
+    fn can_be_edited(&self) -> bool {
+        self.can_be_edited
     }
 }
 

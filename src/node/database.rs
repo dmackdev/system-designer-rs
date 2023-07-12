@@ -14,6 +14,7 @@ pub struct Database {
     pub documents: HashMap<i32, Document>,
     state: DatabaseState,
     message_queue: VecDeque<MessageComponent>,
+    can_be_edited: bool,
 }
 
 impl Database {
@@ -63,6 +64,10 @@ impl SystemNodeTrait for Database {
         println!("{:?}", message);
 
         self.message_queue.push_back(message);
+    }
+
+    fn can_be_edited(&self) -> bool {
+        self.can_be_edited
     }
 }
 

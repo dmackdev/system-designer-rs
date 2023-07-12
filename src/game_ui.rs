@@ -15,7 +15,7 @@ use crate::{
         client::{Client, ClientState, HttpMethod, RequestConfig},
         database::Database,
         server::{Endpoint, Server, ServerState},
-        Hostname, NodeName, NodeType,
+        Hostname, NodeName, NodeType, SystemNodeTrait,
     },
     EditSet, MainMenuSet, SimulateSet,
 };
@@ -132,7 +132,7 @@ fn tools_ui(
 }
 
 #[allow(clippy::complexity)]
-fn node_inspector_ui<T: View + Component>(
+fn node_inspector_ui<T: View + Component + SystemNodeTrait>(
     mut contexts: EguiContexts,
     mut nodes: Query<(
         &PickSelection,
@@ -149,13 +149,15 @@ fn node_inspector_ui<T: View + Component>(
         nodes.iter_mut().find(|query| query.0.is_selected)
     {
         let ctx = contexts.ctx_mut();
+        let can_be_edited = node.can_be_edited();
+
         show_inspector(
             ctx,
             &mut node_name,
             &mut node_type,
             hostname,
             node.as_mut(),
-            app_state.0 == AppState::Edit,
+            can_be_edited && app_state.0 == AppState::Edit,
             delete_node_event,
             entity,
         );

@@ -139,7 +139,7 @@ fn spawn_grid(
                 &asset_server,
                 &mut meshes,
                 &mut materials,
-                AddComponentPayload::Client(Client::new()),
+                AddComponentPayload::Client(Client::new_non_editable()),
                 *x,
                 *y,
             );
