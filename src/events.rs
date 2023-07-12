@@ -12,7 +12,7 @@ impl AddComponentEvent {
     }
 
     pub fn new_database() -> Self {
-        AddComponentEvent(AddComponentPayload::Database(Database::default()))
+        AddComponentEvent(AddComponentPayload::Database(Database::new()))
     }
 }
 

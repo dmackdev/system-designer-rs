@@ -5,11 +5,11 @@ use serde_json::{Map, Value};
 
 use crate::message::{DatabaseCallType, Message, MessageComponent, SendMessageEvent};
 
-use super::{Hostname, SystemNodeTrait};
+use super::SystemNodeTrait;
 
 type Document = Map<String, Value>;
 
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, Clone, Debug)]
 pub struct Database {
     pub documents: HashMap<i32, Document>,
     state: DatabaseState,
@@ -18,6 +18,15 @@ pub struct Database {
 }
 
 impl Database {
+    pub fn new() -> Self {
+        Self {
+            documents: Default::default(),
+            state: Default::default(),
+            message_queue: Default::default(),
+            can_be_edited: true,
+        }
+    }
+
     fn save(&mut self, mut doc: Document) -> Document {
         let id = match doc.get("id") {
             Some(id) => id.as_u64().unwrap() as i32,
@@ -46,12 +55,6 @@ impl Database {
     fn delete(&mut self, id: i32) {
         self.documents.remove(&id);
     }
-}
-
-#[derive(Bundle, Default)]
-pub struct DatabaseBundle {
-    database: Database,
-    hostname: Hostname,
 }
 
 impl SystemNodeTrait for Database {

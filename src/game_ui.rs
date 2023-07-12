@@ -12,9 +12,9 @@ use crate::{
     grid::DeleteNodeEvent,
     level::{Level, LevelState},
     node::{
-        client::{Client, ClientState, HttpMethod, RequestConfig},
+        client::{Client, HttpMethod, RequestConfig},
         database::Database,
-        server::{Endpoint, Server, ServerState},
+        server::{Endpoint, Server},
         Hostname, NodeName, NodeType, SystemNodeTrait,
     },
     EditSet, MainMenuSet, SimulateSet,
@@ -178,52 +178,65 @@ fn show_inspector<T: View>(
     egui::SidePanel::right("inspector")
         .default_width(200.0)
         .show(ctx, |ui| {
-            ui.add_enabled_ui(enabled, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.heading("Inspector");
-                    node_type.ui(ui);
-                    node_name.ui(ui);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.heading("Inspector");
+                node_type.ui(ui, enabled);
+                node_name.ui(ui, enabled);
 
-                    if let Some(mut hostname) = hostname {
-                        hostname.ui(ui);
-                    }
+                if let Some(mut hostname) = hostname {
+                    hostname.ui(ui, enabled);
+                }
 
-                    node.ui(ui);
+                node.ui(ui, enabled);
 
-                    if enabled && ui.button("Delete node").clicked() {
-                        delete_node_event.send(DeleteNodeEvent(entity));
-                    }
+                if enabled && ui.button("Delete node").clicked() {
+                    delete_node_event.send(DeleteNodeEvent(entity));
+                }
 
-                    ui.allocate_space(ui.available_size());
-                });
+                ui.allocate_space(ui.available_size());
             });
         });
 }
 
+trait ToggleEditableUi {
+    fn text_edit_label_toggle(&mut self, editable: bool, text: &mut String);
+}
+
+impl ToggleEditableUi for egui::Ui {
+    fn text_edit_label_toggle(&mut self, editable: bool, text: &mut String) {
+        if editable {
+            self.text_edit_singleline(text);
+        } else {
+            self.label(&*text);
+        }
+    }
+}
+
 trait View {
-    fn ui(&mut self, ui: &mut egui::Ui);
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool);
 }
 
 impl View for NodeName {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         ui.horizontal(|ui| {
             ui.label("Name:");
-            ui.text_edit_singleline(&mut self.0);
+
+            ui.text_edit_label_toggle(editable, &mut self.0);
         });
     }
 }
 
 impl View for Hostname {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         ui.horizontal(|ui| {
             ui.label("Hostname:");
-            ui.text_edit_singleline(&mut self.0);
+            ui.text_edit_label_toggle(editable, &mut self.0);
         });
     }
 }
 
 impl View for NodeType {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, _: bool) {
         ui.horizontal(|ui| {
             ui.label("Type:");
             ui.label(format!("{}", self));
@@ -236,7 +249,7 @@ fn format_method(method: &HttpMethod) -> String {
 }
 
 impl View for Client {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         ui.separator();
 
         ui.heading("Requests");
@@ -247,30 +260,39 @@ impl View for Client {
         for (idx, config) in self.request_configs.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.label("URL:");
-                ui.text_edit_singleline(&mut config.url);
+                ui.text_edit_label_toggle(editable, &mut config.url);
             });
 
             ui.horizontal(|ui| {
                 ui.label("Path:");
-                ui.text_edit_singleline(&mut config.path);
+                ui.text_edit_label_toggle(editable, &mut config.path);
             });
 
             ui.horizontal(|ui| {
                 ui.label("Method:");
 
-                egui::ComboBox::from_id_source(idx)
-                    .selected_text(format_method(&config.method))
-                    .show_ui(ui, |ui| {
-                        for method in HttpMethod::iter() {
-                            ui.selectable_value(&mut config.method, method, format_method(&method));
-                        }
-                    });
+                if editable {
+                    egui::ComboBox::from_id_source(idx)
+                        .selected_text(format_method(&config.method))
+                        .show_ui(ui, |ui| {
+                            for method in HttpMethod::iter() {
+                                ui.selectable_value(
+                                    &mut config.method,
+                                    method,
+                                    format_method(&method),
+                                );
+                            }
+                        });
+                } else {
+                    ui.label(format_method(&config.method));
+                }
             });
 
             if config.method == HttpMethod::Post || config.method == HttpMethod::Put {
                 ui.label("Body:");
                 ui.add(
                     egui::TextEdit::multiline(&mut config.body)
+                        .interactive(editable)
                         .font(egui::TextStyle::Monospace)
                         .code_editor()
                         .desired_rows(1)
@@ -279,16 +301,17 @@ impl View for Client {
                 );
             }
 
-            if self.state == ClientState::SimulationNotStarted
-                && ui.button("Delete Request").clicked()
-            {
+            if editable && ui.button("Delete Request").clicked() {
                 request_idx_to_delete = Some(idx);
-            } else if let Some(response) = &config.response {
+            }
+
+            if let Some(response) = &config.response {
                 ui.label("Response:");
                 let mut pretty_string = serde_json::to_string_pretty(&response).unwrap();
 
                 ui.add(
                     egui::TextEdit::multiline(&mut pretty_string)
+                        .interactive(false)
                         .font(egui::TextStyle::Monospace)
                         .code_editor()
                         .desired_width(f32::INFINITY),
@@ -302,14 +325,14 @@ impl View for Client {
             self.request_configs.remove(i);
         }
 
-        if self.state == ClientState::SimulationNotStarted && ui.button("Add Request").clicked() {
+        if editable && ui.button("Add Request").clicked() {
             self.request_configs.push_back(RequestConfig::default());
         }
     }
 }
 
 impl View for Server {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         ui.separator();
         ui.heading("Endpoints");
         ui.separator();
@@ -319,22 +342,31 @@ impl View for Server {
         for (idx, endpoint) in self.endpoint_handlers.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.label("Path:");
-                ui.text_edit_singleline(&mut endpoint.path);
+                ui.text_edit_label_toggle(editable, &mut endpoint.path);
             });
 
-            egui::ComboBox::from_id_source(idx)
-                .selected_text(format_method(&endpoint.method))
-                .show_ui(ui, |ui| {
-                    for method in HttpMethod::iter() {
-                        ui.selectable_value(&mut endpoint.method, method, format_method(&method));
-                    }
-                });
+            if editable {
+                egui::ComboBox::from_id_source(idx)
+                    .selected_text(format_method(&endpoint.method))
+                    .show_ui(ui, |ui| {
+                        for method in HttpMethod::iter() {
+                            ui.selectable_value(
+                                &mut endpoint.method,
+                                method,
+                                format_method(&method),
+                            );
+                        }
+                    });
+            } else {
+                ui.label(format_method(&endpoint.method));
+            }
 
             egui::CollapsingHeader::new("Request handler")
                 .id_source(idx)
                 .show(ui, |ui| {
                     ui.add(
                         egui::TextEdit::multiline(&mut endpoint.handler)
+                            .interactive(editable)
                             .font(egui::TextStyle::Monospace) // for cursor height
                             .code_editor()
                             .desired_rows(1)
@@ -343,9 +375,7 @@ impl View for Server {
                     );
                 });
 
-            if self.state == ServerState::SimulationNotStarted
-                && ui.button("Delete endpoint").clicked()
-            {
+            if editable && ui.button("Delete endpoint").clicked() {
                 endpoint_idx_to_delete = Some(idx);
             }
 
@@ -356,14 +386,14 @@ impl View for Server {
             self.endpoint_handlers.remove(idx);
         }
 
-        if self.state == ServerState::SimulationNotStarted && ui.button("Add endpoint").clicked() {
+        if editable && ui.button("Add endpoint").clicked() {
             self.endpoint_handlers.push(Endpoint::default());
         }
     }
 }
 
 impl View for Database {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui, _editable: bool) {
         ui.separator();
         ui.heading("Documents");
 

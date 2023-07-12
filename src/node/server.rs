@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use bevy::prelude::{warn, Bundle, Component, Entity, EventWriter, Query};
+use bevy::prelude::{warn, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsResult, JsValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,7 +10,7 @@ use crate::message::{
     DatabaseCall, Message, MessageComponent, Request, Response, SendMessageEvent,
 };
 
-use super::{client::HttpMethod, Hostname, HostnameConnections, SystemNodeTrait};
+use super::{client::HttpMethod, HostnameConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug)]
 pub struct Server {
@@ -112,12 +112,6 @@ impl SystemNodeTrait for Server {
     fn can_be_edited(&self) -> bool {
         self.can_be_edited
     }
-}
-
-#[derive(Bundle, Default)]
-pub struct ServerBundle {
-    server: Server,
-    hostname: Hostname,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
