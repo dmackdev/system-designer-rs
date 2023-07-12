@@ -326,7 +326,7 @@ impl View for Client {
         }
 
         if editable && ui.button("Add Request").clicked() {
-            self.request_configs.push_back(RequestConfig::default());
+            self.request_configs.push(RequestConfig::default());
         }
     }
 }

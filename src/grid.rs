@@ -18,7 +18,7 @@ use crate::{
     events::{AddComponentEvent, AddComponentPayload},
     game_state::AppState,
     layer,
-    level::{Level, LevelState},
+    level::{ClientConfig, Level, LevelState},
     node::{client::Client, Hostname, NodeConnections, NodeType, SystemNodeBundle},
     EditSet, Handles,
 };
@@ -133,13 +133,26 @@ fn spawn_grid(
 
         println!("{:?}", level);
 
-        for (x, y, _request_configs) in level.clients.iter() {
+        for ClientConfig {
+            name,
+            x,
+            y,
+            request_configs,
+        } in level.clients.iter()
+        {
+            let client = Client::new()
+                .editable(false)
+                .request_configs(request_configs.to_vec());
+
+            let system_bundle = SystemNodeBundle::new(NodeType::Client).node_name(name.into());
+
             create_component(
                 &mut commands,
                 &asset_server,
                 &mut meshes,
                 &mut materials,
-                AddComponentPayload::Client(Client::new_non_editable()),
+                system_bundle,
+                AddComponentPayload::Client(client),
                 *x,
                 *y,
             );
@@ -168,6 +181,7 @@ fn add_system_component(
             &asset_server,
             &mut meshes,
             &mut materials,
+            SystemNodeBundle::new(component.get_node_type()),
             component,
             0.0,
             0.0,
@@ -175,11 +189,13 @@ fn add_system_component(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_component(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
+    system_node_bundle: SystemNodeBundle,
     component: AddComponentPayload,
     x: f32,
     y: f32,
@@ -194,7 +210,7 @@ fn create_component(
             material: materials.add(ColorMaterial::from(Color::NONE)),
             ..default()
         },
-        SystemNodeBundle::new(node_type),
+        system_node_bundle,
         OnPointer::<DragStart>::send_event::<ListenedEvent<DragStart>>(),
         OnPointer::<Drag>::send_event::<ListenedEvent<Drag>>(),
         OnPointer::<DragEnd>::send_event::<ListenedEvent<DragEnd>>(),

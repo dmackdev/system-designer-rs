@@ -28,6 +28,11 @@ impl SystemNodeBundle {
             node_connections: NodeConnections::new(),
         }
     }
+
+    pub fn node_name(mut self, name: String) -> Self {
+        self.node_name.0 = name;
+        self
+    }
 }
 
 pub trait SystemNodeTrait {

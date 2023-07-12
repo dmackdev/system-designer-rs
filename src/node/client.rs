@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
@@ -11,7 +9,7 @@ use super::{HostnameConnections, SystemNodeTrait};
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct Client {
-    pub request_configs: VecDeque<RequestConfig>,
+    pub request_configs: Vec<RequestConfig>,
     pub state: ClientState,
     curr_request_idx: usize,
     can_be_edited: bool,
@@ -20,17 +18,20 @@ pub struct Client {
 impl Client {
     pub fn new() -> Self {
         Self {
-            request_configs: VecDeque::from_iter([RequestConfig::default()]),
+            request_configs: vec![RequestConfig::default()],
             can_be_edited: true,
             ..Default::default()
         }
     }
 
-    pub fn new_non_editable() -> Self {
-        Self {
-            can_be_edited: false,
-            ..Client::new()
-        }
+    pub fn editable(mut self, editable: bool) -> Self {
+        self.can_be_edited = editable;
+        self
+    }
+
+    pub fn request_configs(mut self, request_configs: Vec<RequestConfig>) -> Self {
+        self.request_configs = request_configs;
+        self
     }
 }
 
