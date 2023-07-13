@@ -6,7 +6,7 @@ Level(
       y: 0.0,
       request_configs: [
         RequestConfig(
-              url: "/",
+              url: "",
               path: "/",
               method: Get,
               body: "{}",
