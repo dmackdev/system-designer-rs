@@ -109,10 +109,12 @@ impl SystemNodeTrait for Server {
     }
 
     fn handle_message(&mut self, message: MessageComponent) {
-        println!("HANDLING MESSAGE FOR SERVER:");
-        println!("{:?}", message);
+        if self.state == ServerState::Active {
+            println!("HANDLING MESSAGE FOR SERVER:");
+            println!("{:?}", message);
 
-        self.message_queue.push_back(message);
+            self.message_queue.push_back(message);
+        }
     }
 
     fn can_be_edited(&self) -> bool {

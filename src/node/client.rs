@@ -50,10 +50,10 @@ impl SystemNodeTrait for Client {
     }
 
     fn handle_message(&mut self, message: MessageComponent) {
-        println!("HANDLING MESSAGE FOR CLIENT:");
-        println!("{:?}", message);
-
         if let ClientState::Waiting(trace_id) = self.state {
+            println!("HANDLING MESSAGE FOR CLIENT:");
+            println!("{:?}", message);
+
             if trace_id == message.trace_id {
                 if let Message::Response(response) = message.message {
                     println!("RECEIVED CORRECT RESPONSE");
