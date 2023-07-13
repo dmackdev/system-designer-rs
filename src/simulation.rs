@@ -24,11 +24,22 @@ impl Plugin for SimulationPlugin {
         app.add_systems(
             (client_system, server_system, database_system).in_set(OnUpdate(AppState::Simulate)),
         );
+
+        app.add_systems(
+            (reset::<Client>, reset::<Server>, reset::<Database>)
+                .in_schedule(OnEnter(AppState::Edit)),
+        );
     }
 }
 
 fn start<T: Component + SystemNodeTrait>(mut query: Query<&mut T>) {
     for mut node in query.iter_mut() {
         node.start_simulation();
+    }
+}
+
+fn reset<T: Component + SystemNodeTrait>(mut query: Query<&mut T>) {
+    for mut node in query.iter_mut() {
+        node.reset();
     }
 }

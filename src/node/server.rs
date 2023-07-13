@@ -95,6 +95,12 @@ impl Server {
                 )
             })
     }
+
+    fn reset(&mut self) {
+        self.state = ServerState::SimulationNotStarted;
+        self.message_queue.drain(..);
+        self.active_executions.clear();
+    }
 }
 
 impl SystemNodeTrait for Server {
@@ -111,6 +117,10 @@ impl SystemNodeTrait for Server {
 
     fn can_be_edited(&self) -> bool {
         self.can_be_edited
+    }
+
+    fn reset(&mut self) {
+        self.reset();
     }
 }
 

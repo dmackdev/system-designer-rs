@@ -124,10 +124,12 @@ fn tools_ui(
                     if ui.button("Execute").clicked() {
                         app_state.set(AppState::Simulate);
                     }
-
-                    ui.allocate_space(ui.available_size());
                 });
             });
+
+            if curr_app_state.0 == AppState::Simulate && ui.button("Stop").clicked() {
+                app_state.set(AppState::Edit);
+            }
         });
 }
 

@@ -12,6 +12,7 @@ type Document = Map<String, Value>;
 #[derive(Component, Clone, Debug)]
 pub struct Database {
     pub documents: HashMap<i32, Document>,
+    initial_documents: HashMap<i32, Document>,
     state: DatabaseState,
     message_queue: VecDeque<MessageComponent>,
     can_be_edited: bool,
@@ -21,6 +22,7 @@ impl Database {
     pub fn new() -> Self {
         Self {
             documents: Default::default(),
+            initial_documents: Default::default(),
             state: Default::default(),
             message_queue: Default::default(),
             can_be_edited: true,
@@ -55,6 +57,12 @@ impl Database {
     fn delete(&mut self, id: i32) {
         self.documents.remove(&id);
     }
+
+    fn reset(&mut self) {
+        self.state = DatabaseState::SimulationNotStarted;
+        self.documents = self.initial_documents.clone();
+        self.message_queue.drain(..);
+    }
 }
 
 impl SystemNodeTrait for Database {
@@ -71,6 +79,10 @@ impl SystemNodeTrait for Database {
 
     fn can_be_edited(&self) -> bool {
         self.can_be_edited
+    }
+
+    fn reset(&mut self) {
+        self.reset();
     }
 }
 

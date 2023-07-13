@@ -33,6 +33,15 @@ impl Client {
         self.request_configs = request_configs;
         self
     }
+
+    fn reset(&mut self) {
+        self.state = ClientState::SimulationNotStarted;
+        self.curr_request_idx = 0;
+
+        for r in self.request_configs.iter_mut() {
+            r.response = None;
+        }
+    }
 }
 
 impl SystemNodeTrait for Client {
@@ -74,6 +83,10 @@ impl SystemNodeTrait for Client {
 
     fn can_be_edited(&self) -> bool {
         self.can_be_edited
+    }
+
+    fn reset(&mut self) {
+        self.reset();
     }
 }
 

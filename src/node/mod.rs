@@ -37,6 +37,7 @@ impl SystemNodeBundle {
 
 pub trait SystemNodeTrait {
     fn start_simulation(&mut self);
+    fn reset(&mut self);
     fn handle_message(&mut self, message: MessageComponent);
     fn can_be_edited(&self) -> bool;
 }

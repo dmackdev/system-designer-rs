@@ -60,7 +60,8 @@ impl Plugin for GridPlugin {
                 .in_set(EditSet),
         );
 
-        app.add_system(spawn_grid.in_schedule(OnEnter(AppState::Edit)));
+        app.add_system(spawn_grid.in_schedule(OnExit(AppState::MainMenu)));
+        app.add_system(spawn_grid.in_schedule(OnExit(AppState::LevelSelect)));
 
         app.add_systems(
             (
