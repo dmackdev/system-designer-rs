@@ -130,6 +130,8 @@ fn tools_ui(
             if curr_app_state.0 == AppState::Simulate && ui.button("Stop").clicked() {
                 app_state.set(AppState::Edit);
             }
+
+            ui.allocate_space(ui.available_size());
         });
 }
 
