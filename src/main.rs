@@ -62,7 +62,10 @@ fn main() {
 
     app.configure_set(MainMenuSet.run_if(in_state(AppState::MainMenu)));
     app.configure_set(EditSet.run_if(in_state(AppState::Edit)));
-    app.configure_set(SimulateSet.run_if(in_state(AppState::Simulate)));
+    app.configure_set(
+        SimulateSet
+            .run_if(in_state(AppState::Simulate).or_else(in_state(AppState::SimulateFinish))),
+    );
 
     app.add_plugins(default)
         .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]))

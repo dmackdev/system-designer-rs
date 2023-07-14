@@ -8,6 +8,7 @@ pub enum AppState {
     LevelSelect,
     Edit,
     Simulate,
+    SimulateFinish,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

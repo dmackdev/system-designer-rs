@@ -1,13 +1,13 @@
 use bevy::prelude::{
-    Commands, Component, DespawnRecursiveExt, Entity, IntoSystemAppConfigs, IntoSystemConfigs,
-    OnEnter, OnUpdate, Plugin, Query, With,
+    Commands, Component, DespawnRecursiveExt, Entity, IntoSystemAppConfigs, IntoSystemConfig,
+    IntoSystemConfigs, NextState, OnEnter, OnUpdate, Plugin, Query, ResMut, With,
 };
 
 use crate::{
     game_state::AppState,
     message::MessageComponent,
     node::{
-        client::{client_system, Client},
+        client::{client_system, Client, ClientState},
         database::{database_system, Database},
         server::{server_system, Server},
         SystemNodeTrait,
@@ -26,6 +26,8 @@ impl Plugin for SimulationPlugin {
         app.add_systems(
             (client_system, server_system, database_system).in_set(OnUpdate(AppState::Simulate)),
         );
+
+        app.add_system(verify_solution.in_set(OnUpdate(AppState::Simulate)));
 
         app.add_systems(
             (
@@ -58,4 +60,27 @@ fn destroy_in_flight_messages(
     for message_entity in message_query.iter() {
         commands.entity(message_entity).despawn_recursive();
     }
+}
+
+fn verify_solution(
+    mut clients: Query<&mut Client>,
+    message_query: Query<Entity, With<MessageComponent>>,
+    mut app_state: ResMut<NextState<AppState>>,
+) {
+    if !clients
+        .iter()
+        .all(|client| client.state == ClientState::Finished)
+    {
+        return;
+    }
+
+    if message_query.iter().count() > 0 {
+        return;
+    }
+
+    for mut client in clients.iter_mut() {
+        client.verify();
+    }
+
+    app_state.set(AppState::SimulateFinish);
 }

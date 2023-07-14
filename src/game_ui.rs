@@ -131,6 +131,10 @@ fn tools_ui(
                 app_state.set(AppState::Edit);
             }
 
+            if curr_app_state.0 == AppState::SimulateFinish && ui.button("Try Again").clicked() {
+                app_state.set(AppState::Edit);
+            }
+
             ui.allocate_space(ui.available_size());
         });
 }
@@ -320,6 +324,10 @@ impl View for Client {
                         .code_editor()
                         .desired_width(f32::INFINITY),
                 );
+
+                for (_passed, message) in config.expectations_results.iter() {
+                    ui.label(message);
+                }
             }
 
             ui.separator();

@@ -39,8 +39,15 @@ impl Client {
         self.curr_request_idx = 0;
 
         for r in self.request_configs.iter_mut() {
-            r.response = None;
+            r.reset();
         }
+    }
+
+    pub fn verify(&mut self) -> bool {
+        self.request_configs
+            .iter_mut()
+            .map(|request_config| request_config.verify())
+            .all(|b| b)
     }
 }
 
@@ -98,6 +105,8 @@ pub struct RequestConfig {
     pub body: String,
     trace_id: Uuid,
     pub response: Option<Response>,
+    expectations: Vec<ResponseExpectation>,
+    pub expectations_results: Vec<(bool, String)>,
 }
 
 impl Default for RequestConfig {
@@ -109,6 +118,51 @@ impl Default for RequestConfig {
             method: HttpMethod::default(),
             trace_id: Uuid::new_v4(),
             response: None,
+            expectations: vec![],
+            expectations_results: vec![],
+        }
+    }
+}
+
+impl RequestConfig {
+    fn reset(&mut self) {
+        self.response = None;
+        self.expectations_results = vec![];
+    }
+
+    fn verify(&mut self) -> bool {
+        match &self.response {
+            Some(response) => {
+                let mut passed = true;
+
+                for exp in self.expectations.iter() {
+                    let result = exp.verify(response);
+
+                    if !result.0 {
+                        passed = false;
+                    }
+
+                    self.expectations_results.push(result)
+                }
+
+                passed
+            }
+            None => false,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub enum ResponseExpectation {
+    Status(u16),
+}
+impl ResponseExpectation {
+    fn verify(&self, response: &Response) -> (bool, String) {
+        match self {
+            ResponseExpectation::Status(exp_status) => (
+                *exp_status == response.status,
+                format!("Expected {}, received {}", exp_status, response.status),
+            ),
         }
     }
 }
