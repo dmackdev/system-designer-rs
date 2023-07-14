@@ -1,4 +1,19 @@
 Level(
+  name: "Hello World!",
+  description: 
+r#"Welcome to System Architect!
+
+This level is to get you used to the game.
+
+Select the Client to inspect the requests that it will send.
+
+Then create, configure and connect a Server to handle its requests.
+
+In order to complete this level, you must return a response to the Client with:
+    - status 200,
+    - a payload of "Hello World!".
+
+Good luck!"#,
   clients: [
     ClientConfig(
       name: "user1",
@@ -6,8 +21,8 @@ Level(
       y: 0.0,
       request_configs: [
         RequestConfig(
-              url: "",
-              path: "/",
+              url: "level-1.com",
+              path: "/hello-world",
               method: Get,
               body: "{}",
               trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A",

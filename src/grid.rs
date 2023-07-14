@@ -18,9 +18,9 @@ use crate::{
     events::{AddComponentEvent, AddComponentPayload},
     game_state::AppState,
     layer,
-    level::{ClientConfig, Level, LevelState},
+    level::{ClientConfig, CurrentLevel},
     node::{client::Client, Hostname, NodeConnections, NodeType, SystemNodeBundle},
-    EditSet, Handles,
+    EditSet,
 };
 
 const GRID_SIZE: f32 = 50.0;
@@ -104,21 +104,6 @@ impl Plugin for GridPlugin {
     }
 }
 
-#[derive(SystemParam)]
-pub struct CurrentLevel<'w> {
-    levels: Res<'w, Assets<Level>>,
-    handles: Res<'w, Handles>,
-    level_state: Res<'w, LevelState>,
-}
-
-impl<'w> CurrentLevel<'w> {
-    fn get(&self) -> Option<&Level> {
-        self.level_state
-            .current_level
-            .and_then(|idx| self.levels.get(&self.handles.levels[idx]))
-    }
-}
-
 fn spawn_grid(
     mut commands: Commands,
     current_level: CurrentLevel,
@@ -142,7 +127,7 @@ fn spawn_grid(
         }
     }
 
-    if let Some(level) = current_level.get() {
+    if let Some((_, level)) = current_level.get() {
         println!("{:?}", level);
 
         for ClientConfig {

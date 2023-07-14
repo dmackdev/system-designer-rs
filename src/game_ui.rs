@@ -10,7 +10,7 @@ use crate::{
     events::AddComponentEvent,
     game_state::{AppState, GameMode},
     grid::DeleteNodeEvent,
-    level::{Level, LevelState},
+    level::{CurrentLevel, Level, LevelState},
     node::{
         client::{Client, HttpMethod, RequestConfig},
         database::Database,
@@ -79,8 +79,8 @@ fn level_select_ui(
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.heading("Levels");
 
-            for (idx, _) in levels.iter().enumerate() {
-                let level_button_label = format!("Level {}", idx + 1);
+            for (idx, (_, level)) in levels.iter().enumerate() {
+                let level_button_label = format!("Level {}: {}", idx + 1, level.name);
 
                 if ui.button(level_button_label).clicked() {
                     level_state.current_level = Some(idx);
@@ -97,14 +97,22 @@ fn tools_ui(
     mut add_component_events: EventWriter<AddComponentEvent>,
     curr_app_state: Res<State<AppState>>,
     mut app_state: ResMut<NextState<AppState>>,
+    current_level: CurrentLevel,
 ) {
     let ctx = contexts.ctx_mut();
 
     egui::SidePanel::left("tools")
         .default_width(200.0)
         .show(ctx, |ui| {
-            ui.add_enabled_ui(curr_app_state.0 == AppState::Edit, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                if let Some((level_idx, level)) = current_level.get() {
+                    ui.heading(format!("Level {}: {}", level_idx + 1, level.name));
+                    ui.separator();
+                    ui.label(&level.description);
+                    ui.separator();
+                }
+
+                ui.add_enabled_ui(curr_app_state.0 == AppState::Edit, |ui| {
                     ui.heading("Components");
 
                     if ui.button("Add Client").clicked() {

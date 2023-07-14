@@ -1,11 +1,17 @@
-use bevy::{prelude::Resource, reflect::TypeUuid};
+use bevy::{
+    ecs::system::SystemParam,
+    prelude::{Assets, Res, Resource},
+    reflect::TypeUuid,
+};
 use serde::Deserialize;
 
-use crate::node::client::RequestConfig;
+use crate::{node::client::RequestConfig, Handles};
 
 #[derive(Deserialize, Debug, TypeUuid)]
 #[uuid = "F542117A-81DB-43E1-BB4C-4B4130B440C5"]
 pub struct Level {
+    pub name: String,
+    pub description: String,
     pub clients: Vec<ClientConfig>,
 }
 
@@ -20,4 +26,19 @@ pub struct ClientConfig {
 #[derive(Resource, Default)]
 pub struct LevelState {
     pub current_level: Option<usize>,
+}
+
+#[derive(SystemParam)]
+pub struct CurrentLevel<'w> {
+    levels: Res<'w, Assets<Level>>,
+    handles: Res<'w, Handles>,
+    level_state: Res<'w, LevelState>,
+}
+
+impl<'w> CurrentLevel<'w> {
+    pub fn get(&self) -> Option<(usize, &Level)> {
+        self.level_state
+            .current_level
+            .map(|idx| (idx, self.levels.get(&self.handles.levels[idx]).unwrap()))
+    }
 }
