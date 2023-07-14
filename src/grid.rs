@@ -104,11 +104,24 @@ impl Plugin for GridPlugin {
     }
 }
 
+#[derive(SystemParam)]
+pub struct CurrentLevel<'w> {
+    levels: Res<'w, Assets<Level>>,
+    handles: Res<'w, Handles>,
+    level_state: Res<'w, LevelState>,
+}
+
+impl<'w> CurrentLevel<'w> {
+    fn get(&self) -> Option<&Level> {
+        self.level_state
+            .current_level
+            .and_then(|idx| self.levels.get(&self.handles.levels[idx]))
+    }
+}
+
 fn spawn_grid(
     mut commands: Commands,
-    levels: Res<Assets<Level>>,
-    handles: Res<Handles>,
-    level_state: Res<LevelState>,
+    current_level: CurrentLevel,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -129,9 +142,7 @@ fn spawn_grid(
         }
     }
 
-    if let Some(selected_level) = level_state.current_level {
-        let level = levels.get(&handles.levels[selected_level]).unwrap();
-
+    if let Some(level) = current_level.get() {
         println!("{:?}", level);
 
         for ClientConfig {
