@@ -259,6 +259,10 @@ impl View for Hostname {
         ui.horizontal(|ui| {
             ui.label("Hostname:");
             ui.text_edit_label_toggle(editable, &mut self.0);
+
+            if ui.button("Copy").clicked() {
+                ui.output_mut(|o| o.copied_text = self.0.to_string());
+            }
         });
     }
 }
@@ -289,11 +293,19 @@ impl View for Client {
             ui.horizontal(|ui| {
                 ui.label("URL:");
                 ui.text_edit_label_toggle(editable, &mut config.url);
+
+                if ui.button("Copy").clicked() {
+                    ui.output_mut(|o| o.copied_text = config.url.to_string());
+                }
             });
 
             ui.horizontal(|ui| {
                 ui.label("Path:");
                 ui.text_edit_label_toggle(editable, &mut config.path);
+
+                if ui.button("Copy").clicked() {
+                    ui.output_mut(|o| o.copied_text = config.path.to_string());
+                }
             });
 
             ui.horizontal(|ui| {
