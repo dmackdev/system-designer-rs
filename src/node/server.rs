@@ -302,7 +302,7 @@ struct ServerExecution {
     original_trace_id: Uuid,
 }
 
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
 enum ExecutionError {
     NotFound,
     BadRequest,
@@ -325,6 +325,15 @@ impl From<ExecutionError> for Response {
             ExecutionError::BadRequest => Response::bad_request(),
             ExecutionError::InternalServerError(value) => Response::internal_server_error(value),
         }
+    }
+}
+
+impl From<serde_json::Error> for ExecutionError {
+    fn from(value: serde_json::Error) -> Self {
+        println!("{:?}", value);
+        println!("{:?}", value.to_string());
+        // TODO: better message for client
+        Self::InternalServerError(Value::from("Incorrect yield value or response."))
     }
 }
 
@@ -426,7 +435,10 @@ gen.next(lastGenResult);
         println!("LATEST YIELD JS VALUE:");
         println!("{:?}", latest_value);
 
-        Ok(serde_json::from_value(latest_value).unwrap())
+        // TODO: determine if the generator is done
+        // If it is, then create an ExecutionError indicating a wrong return type from the endpoint
+        // Otherwise malformed yield value
+        serde_json::from_value(latest_value)?
     }
 }
 
