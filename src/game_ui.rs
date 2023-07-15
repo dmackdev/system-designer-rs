@@ -17,7 +17,7 @@ use crate::{
         server::{Endpoint, Server},
         Hostname, NodeName, NodeType, SystemNodeTrait,
     },
-    EditSet, MainMenuSet, SimulateSet,
+    GridSet, MainMenuSet,
 };
 
 use bevy::prelude::*;
@@ -32,15 +32,18 @@ impl Plugin for GameUiPlugin {
         app.add_system(main_menu_ui.in_set(MainMenuSet));
         app.add_system(level_select_ui.in_set(OnUpdate(AppState::LevelSelect)));
 
-        let ui_systems = (
-            tools_ui,
-            node_inspector_ui::<Client>,
-            node_inspector_ui::<Server>,
-            node_inspector_ui::<Database>,
+        app.add_systems(
+            (
+                node_inspector_ui::<Client>,
+                node_inspector_ui::<Server>,
+                node_inspector_ui::<Database>,
+            )
+                .in_set(GridSet)
+                .before(bottom_panel_ui),
         );
 
-        app.add_systems(ui_systems.in_set(EditSet));
-        app.add_systems(ui_systems.in_set(SimulateSet));
+        app.add_system(tools_ui.in_set(GridSet));
+        app.add_system(bottom_panel_ui.in_set(GridSet).after(tools_ui));
     }
 }
 
@@ -97,7 +100,6 @@ fn tools_ui(
     mut add_component_events: EventWriter<AddComponentEvent>,
     curr_app_state: Res<State<AppState>>,
     mut app_state: ResMut<NextState<AppState>>,
-    current_level: CurrentLevel,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -105,13 +107,6 @@ fn tools_ui(
         .default_width(200.0)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                if let Some((level_idx, level)) = current_level.get() {
-                    ui.heading(format!("Level {}: {}", level_idx + 1, level.name));
-                    ui.separator();
-                    ui.label(&level.description);
-                    ui.separator();
-                }
-
                 ui.add_enabled_ui(curr_app_state.0 == AppState::Edit, |ui| {
                     ui.heading("Components");
 
@@ -145,6 +140,23 @@ fn tools_ui(
 
             ui.allocate_space(ui.available_size());
         });
+}
+
+fn bottom_panel_ui(mut contexts: EguiContexts, current_level: CurrentLevel) {
+    let ctx = contexts.ctx_mut();
+
+    if let Some((level_idx, level)) = current_level.get() {
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading(format!("Level {}: {}", level_idx + 1, level.name));
+                ui.separator();
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.label(&level.description);
+                    ui.allocate_space(ui.available_size());
+                });
+            });
+    }
 }
 
 #[allow(clippy::complexity)]

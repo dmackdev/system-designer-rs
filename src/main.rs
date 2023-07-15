@@ -32,7 +32,7 @@ pub struct MainMenuSet;
 pub struct EditSet;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-pub struct SimulateSet;
+pub struct GridSet;
 
 fn main() {
     let mut app = App::new();
@@ -62,9 +62,12 @@ fn main() {
 
     app.configure_set(MainMenuSet.run_if(in_state(AppState::MainMenu)));
     app.configure_set(EditSet.run_if(in_state(AppState::Edit)));
+
     app.configure_set(
-        SimulateSet
-            .run_if(in_state(AppState::Simulate).or_else(in_state(AppState::SimulateFinish))),
+        GridSet.run_if(
+            in_state(AppState::Simulate)
+                .or_else(in_state(AppState::SimulateFinish).or_else(in_state(AppState::Edit))),
+        ),
     );
 
     app.add_plugins(default)
