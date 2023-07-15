@@ -438,7 +438,13 @@ gen.next(lastGenResult);
         // TODO: determine if the generator is done
         // If it is, then create an ExecutionError indicating a wrong return type from the endpoint
         // Otherwise malformed yield value
-        serde_json::from_value(latest_value)?
+
+        match serde_json::from_value::<GeneratorResultValue>(latest_value) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.into()),
+        }
+
+        // serde_json::from_value(latest_value)? // TODO: For some reason this always errors, but the above works??
     }
 }
 
