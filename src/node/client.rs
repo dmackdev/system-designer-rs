@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -161,16 +163,30 @@ pub enum ResponseExpectation {
 impl ResponseExpectation {
     fn verify(&self, response: &Response) -> (bool, String) {
         match self {
-            ResponseExpectation::Status(exp_status) => (
-                *exp_status == response.status,
-                format!("Expected {}, received {}", exp_status, response.status),
-            ),
-            ResponseExpectation::ExactBody(expected) => (
-                *expected == response.data,
-                format!("Expected {}, received {}", expected, response.data),
-            ),
+            ResponseExpectation::Status(exp_status) => {
+                get_expectation_result("status", exp_status, &response.status)
+            }
+            ResponseExpectation::ExactBody(expected) => {
+                get_expectation_result("body", expected, &response.data)
+            }
         }
     }
+}
+
+fn get_expectation_result<T: Display + PartialEq>(
+    name: &str,
+    expected: T,
+    actual: T,
+) -> (bool, String) {
+    let passed = expected == actual;
+
+    let mut msg = format!("Expected {} {}", name, expected);
+
+    if !passed {
+        msg.push_str(&format!(", received {}", actual));
+    }
+
+    (passed, msg)
 }
 
 #[derive(
