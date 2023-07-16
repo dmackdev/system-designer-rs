@@ -1,5 +1,6 @@
 use bevy::prelude::{Component, Entity, EventWriter, Query};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum::EnumIter;
 use uuid::Uuid;
 
@@ -155,6 +156,7 @@ impl RequestConfig {
 #[derive(Deserialize, Clone, Debug)]
 pub enum ResponseExpectation {
     Status(u16),
+    ExactBody(Value),
 }
 impl ResponseExpectation {
     fn verify(&self, response: &Response) -> (bool, String) {
@@ -162,6 +164,10 @@ impl ResponseExpectation {
             ResponseExpectation::Status(exp_status) => (
                 *exp_status == response.status,
                 format!("Expected {}, received {}", exp_status, response.status),
+            ),
+            ResponseExpectation::ExactBody(expected) => (
+                *expected == response.data,
+                format!("Expected {}, received {}", expected, response.data),
             ),
         }
     }

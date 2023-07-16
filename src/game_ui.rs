@@ -1,6 +1,6 @@
 use bevy::prelude::{App, EventWriter, Plugin, SystemSet};
 use bevy_egui::{
-    egui::{self, Context},
+    egui::{self, text::LayoutJob, Color32, Context, TextFormat},
     EguiContexts,
 };
 use bevy_mod_picking::selection::PickSelection;
@@ -357,8 +357,23 @@ impl View for Client {
                         .desired_width(f32::INFINITY),
                 );
 
-                for (_passed, message) in config.expectations_results.iter() {
-                    ui.label(message);
+                for (passed, message) in config.expectations_results.iter() {
+                    let mut job = LayoutJob::default();
+                    let (icon, color) = if *passed {
+                        ("✔", Color32::GREEN)
+                    } else {
+                        ("✖", Color32::RED)
+                    };
+                    job.append(
+                        icon,
+                        0.0,
+                        TextFormat {
+                            color,
+                            ..Default::default()
+                        },
+                    );
+                    job.append(message, 0.0, TextFormat::default());
+                    ui.label(job);
                 }
             }
 
