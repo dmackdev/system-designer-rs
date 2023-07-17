@@ -227,13 +227,14 @@ pub fn client_system(
     for (client_entity, mut client) in client_query.iter_mut() {
         if let ClientState::SendNextRequest = client.state {
             // Send first request
-            if let Some(request_config) = client.request_configs.get(client.curr_request_idx) {
+            let idx = client.curr_request_idx;
+            if let Some(request_config) = client.request_configs.get_mut(idx) {
                 let recipient = hostname_connections
                     .get_connected_entity_by_hostname(client_entity, &request_config.url);
 
                 if let Some(recipient) = recipient {
                     let trace_id = request_config.trace_id;
-                    let request = Request::try_from(request_config).unwrap();
+                    let request: Request = request_config.into();
 
                     events.send(SendMessageEvent {
                         sender: client_entity,
@@ -243,6 +244,11 @@ pub fn client_system(
                     });
 
                     client.state = ClientState::Waiting(trace_id);
+                } else {
+                    request_config
+                        .expectations_results
+                        .push((false, "ERR_CONNECTION_REFUSED".to_string())); // TODO: make better
+                    client.state = ClientState::Finished;
                 }
             }
         };

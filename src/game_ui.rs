@@ -356,25 +356,25 @@ impl View for Client {
                         .code_editor()
                         .desired_width(f32::INFINITY),
                 );
+            }
 
-                for (passed, message) in config.expectations_results.iter() {
-                    let mut job = LayoutJob::default();
-                    let (icon, color) = if *passed {
-                        ("✔", Color32::GREEN)
-                    } else {
-                        ("✖", Color32::RED)
-                    };
-                    job.append(
-                        icon,
-                        0.0,
-                        TextFormat {
-                            color,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(message, 0.0, TextFormat::default());
-                    ui.label(job);
-                }
+            for (passed, message) in config.expectations_results.iter() {
+                let mut job = LayoutJob::default();
+                let (icon, color) = if *passed {
+                    ("✔", Color32::GREEN)
+                } else {
+                    ("✖", Color32::RED)
+                };
+                job.append(
+                    icon,
+                    0.0,
+                    TextFormat {
+                        color,
+                        ..Default::default()
+                    },
+                );
+                job.append(message, 0.0, TextFormat::default());
+                ui.label(job);
             }
 
             ui.separator();

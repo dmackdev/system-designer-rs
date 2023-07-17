@@ -67,22 +67,20 @@ pub struct Request {
     pub params: HashMap<String, String>,
 }
 
-impl TryFrom<&RequestConfig> for Request {
-    type Error = ();
-
-    fn try_from(value: &RequestConfig) -> Result<Self, Self::Error> {
+impl From<&mut RequestConfig> for Request {
+    fn from(value: &mut RequestConfig) -> Self {
         let body = match value.method {
             HttpMethod::Get | HttpMethod::Delete => Value::Null,
             HttpMethod::Post | HttpMethod::Put => serde_json::from_str(&value.body).unwrap(), // TODO: handle if this fails
         };
 
-        Ok(Self {
+        Self {
             url: value.url.clone(),
             path: value.path.clone(),
             method: value.method,
             body,
             params: HashMap::new(),
-        })
+        }
     }
 }
 
