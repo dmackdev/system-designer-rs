@@ -14,6 +14,6 @@ pub enum AppState {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameMode {
     #[default]
-    LevelSelect,
+    Levels,
     Sandbox,
 }

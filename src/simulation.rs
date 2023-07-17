@@ -5,6 +5,7 @@ use bevy::prelude::{
 
 use crate::{
     game_state::AppState,
+    level::LevelState,
     message::MessageComponent,
     node::{
         client::{client_system, Client, ClientState},
@@ -66,6 +67,7 @@ fn verify_solution(
     mut clients: Query<&mut Client>,
     message_query: Query<Entity, With<MessageComponent>>,
     mut app_state: ResMut<NextState<AppState>>,
+    mut level_state: ResMut<LevelState>,
 ) {
     if !clients
         .iter()
@@ -78,9 +80,15 @@ fn verify_solution(
         return;
     }
 
+    let mut passed = true;
     for mut client in clients.iter_mut() {
-        client.verify();
+        let client_passed = client.verify();
+
+        if !client_passed {
+            passed = false
+        }
     }
 
+    level_state.level_passed = passed;
     app_state.set(AppState::SimulateFinish);
 }

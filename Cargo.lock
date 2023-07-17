@@ -970,6 +970,7 @@ dependencies = [
  "bevy_mod_picking",
  "bevy_prototype_lyon",
  "boa_engine",
+ "egui-modal",
  "serde",
  "serde_json",
  "strum",
@@ -1610,6 +1611,15 @@ dependencies = [
  "ahash 0.8.3",
  "epaint",
  "nohash-hasher",
+]
+
+[[package]]
+name = "egui-modal"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a0f6c12317892e64d20b5940f423a1bcaca1139f91735a4171e2556c67e64ba"
+dependencies = [
+ "egui",
 ]
 
 [[package]]

@@ -4,6 +4,7 @@ use bevy_egui::{
     EguiContexts,
 };
 use bevy_mod_picking::selection::PickSelection;
+use egui_modal::Modal;
 use strum::IntoEnumIterator;
 
 use crate::{
@@ -44,6 +45,20 @@ impl Plugin for GameUiPlugin {
 
         app.add_system(tools_ui.in_set(GridSet));
         app.add_system(bottom_panel_ui.in_set(GridSet).after(tools_ui));
+
+        app.add_system(
+            (|| true)
+                .pipe(level_finish_modal_ui)
+                .run_if(in_state(GameMode::Levels))
+                .in_schedule(OnEnter(AppState::SimulateFinish)),
+        );
+
+        app.add_system(
+            (|| false)
+                .pipe(level_finish_modal_ui)
+                .run_if(in_state(GameMode::Levels))
+                .in_set(OnUpdate(AppState::SimulateFinish)),
+        );
     }
 }
 
@@ -156,6 +171,40 @@ fn bottom_panel_ui(mut contexts: EguiContexts, current_level: CurrentLevel) {
                     ui.allocate_space(ui.available_size());
                 });
             });
+    }
+}
+
+fn level_finish_modal_ui(
+    In(should_open): In<bool>,
+    mut contexts: EguiContexts,
+    level_state: Res<LevelState>,
+) {
+    let ctx = contexts.ctx_mut();
+
+    let modal = Modal::new(ctx, "level_finish_modal");
+
+    modal.show(|ui| {
+        modal.title(ui, "Level Complete");
+        modal.frame(ui, |ui| {
+            modal.body(
+                ui,
+                format!(
+                    "Result: {}",
+                    if level_state.level_passed {
+                        "Pass"
+                    } else {
+                        "Fail"
+                    }
+                ),
+            );
+        });
+        modal.buttons(ui, |ui| {
+            modal.button(ui, "Close");
+        });
+    });
+
+    if should_open {
+        modal.open();
     }
 }
 

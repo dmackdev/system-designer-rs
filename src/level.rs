@@ -26,6 +26,7 @@ pub struct ClientConfig {
 #[derive(Resource, Default)]
 pub struct LevelState {
     pub current_level: Option<usize>,
+    pub level_passed: bool,
 }
 
 #[derive(SystemParam)]
