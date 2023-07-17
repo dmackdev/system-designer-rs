@@ -178,6 +178,7 @@ fn level_finish_modal_ui(
     In(should_open): In<bool>,
     mut contexts: EguiContexts,
     level_state: Res<LevelState>,
+    mut app_state: ResMut<NextState<AppState>>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -200,6 +201,9 @@ fn level_finish_modal_ui(
         });
         modal.buttons(ui, |ui| {
             modal.button(ui, "Close");
+            if modal.button(ui, "Level Select").clicked() {
+                app_state.set(AppState::LevelSelect);
+            }
         });
     });
 

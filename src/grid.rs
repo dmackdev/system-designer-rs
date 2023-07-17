@@ -63,6 +63,9 @@ impl Plugin for GridPlugin {
         app.add_system(spawn_grid.in_schedule(OnExit(AppState::MainMenu)));
         app.add_system(spawn_grid.in_schedule(OnExit(AppState::LevelSelect)));
 
+        app.add_system(destroy_grid.in_schedule(OnEnter(AppState::MainMenu)));
+        app.add_system(destroy_grid.in_schedule(OnEnter(AppState::LevelSelect)));
+
         app.add_systems(
             (
                 add_system_component.run_if(on_event::<AddComponentEvent>()),
@@ -104,6 +107,9 @@ impl Plugin for GridPlugin {
     }
 }
 
+#[derive(Component)]
+struct GridRoot;
+
 fn spawn_grid(
     mut commands: Commands,
     current_level: CurrentLevel,
@@ -111,19 +117,27 @@ fn spawn_grid(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    let grid_root_entity = commands.spawn((SpatialBundle::default(), GridRoot)).id();
+
+    let mut children = vec![];
+
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
-            commands.spawn((
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shapes::Circle {
-                        radius: GRID_VERTEX_RADIUS,
-                        ..Default::default()
-                    }),
-                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
-                    ..default()
-                },
-                Fill::color(color::GRID),
-            ));
+            let grid_node = commands
+                .spawn((
+                    ShapeBundle {
+                        path: GeometryBuilder::build_as(&shapes::Circle {
+                            radius: GRID_VERTEX_RADIUS,
+                            ..Default::default()
+                        }),
+                        transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
+                        ..default()
+                    },
+                    Fill::color(color::GRID),
+                ))
+                .id();
+
+            children.push(grid_node);
         }
     }
 
@@ -143,7 +157,7 @@ fn spawn_grid(
 
             let system_bundle = SystemNodeBundle::new(NodeType::Client).node_name(name.into());
 
-            create_component(
+            let component_entity = create_component(
                 &mut commands,
                 &asset_server,
                 &mut meshes,
@@ -153,7 +167,17 @@ fn spawn_grid(
                 *x,
                 *y,
             );
+
+            children.push(component_entity);
         }
+    }
+
+    commands.entity(grid_root_entity).push_children(&children);
+}
+
+fn destroy_grid(mut commands: Commands, grid_root: Query<Entity, With<GridRoot>>) {
+    if let Ok(grid_root) = grid_root.get_single() {
+        commands.entity(grid_root).despawn_recursive();
     }
 }
 
@@ -169,11 +193,14 @@ fn add_system_component(
     mut add_component_events: EventReader<AddComponentEvent>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    grid_root: Query<Entity, With<GridRoot>>,
 ) {
+    let grid_root = grid_root.single();
+
     for event in add_component_events.into_iter() {
         let component = event.0.clone();
 
-        create_component(
+        let component_entity = create_component(
             &mut commands,
             &asset_server,
             &mut meshes,
@@ -183,6 +210,8 @@ fn add_system_component(
             0.0,
             0.0,
         );
+
+        commands.entity(grid_root).add_child(component_entity);
     }
 }
 
@@ -196,7 +225,7 @@ fn create_component(
     component: AddComponentPayload,
     x: f32,
     y: f32,
-) {
+) -> Entity {
     let node_type = component.get_node_type();
 
     let mut node_entity = commands.spawn((
@@ -231,6 +260,8 @@ fn create_component(
             node_entity.insert((database, Hostname::default()))
         }
     };
+
+    node_entity.id()
 }
 
 fn delete_node(
@@ -306,7 +337,10 @@ fn drag_start_node(
     nodes_query: Query<&Transform, With<NodeConnections>>,
     mut drag_event: EventReader<ListenedEvent<DragStart>>,
     mut node_connect_state: ResMut<NodeConnectState>,
+    grid_root: Query<Entity, With<GridRoot>>,
 ) {
+    let grid_root = grid_root.single();
+
     for drag_event in drag_event.iter() {
         if matches!(drag_event.button, PointerButton::Secondary) {
             node_connect_state.start_node_entity = Some(drag_event.target);
@@ -327,6 +361,8 @@ fn drag_start_node(
                 .id();
 
             node_connect_state.line_in_progress_entity = Some(connection_path_entity);
+
+            commands.entity(grid_root).add_child(connection_path_entity);
         }
     }
 }
