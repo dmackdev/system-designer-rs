@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use bevy::prelude::{App, EventWriter, Plugin, SystemSet};
 use bevy_egui::{
     egui::{self, text::LayoutJob, Color32, Context, TextFormat},
@@ -212,21 +214,14 @@ fn level_finish_modal_ui(
     }
 }
 
-#[allow(clippy::complexity)]
 fn node_inspector_ui<T: View + Component + SystemNodeTrait>(
     mut contexts: EguiContexts,
-    mut nodes: Query<(
-        &PickSelection,
-        Entity,
-        &mut NodeName,
-        &mut NodeType,
-        Option<&mut Hostname>,
-        &mut T,
-    )>,
+    mut nodes: Query<(&PickSelection, Entity, &mut NodeName, &mut NodeType, &mut T)>,
     app_state: Res<State<AppState>>,
     delete_node_event: EventWriter<DeleteNodeEvent>,
+    hostnames: Query<(Entity, &mut Hostname)>,
 ) {
-    if let Some((_, entity, mut node_name, mut node_type, hostname, mut node)) =
+    if let Some((_, entity, mut node_name, mut node_type, mut node)) =
         nodes.iter_mut().find(|query| query.0.is_selected)
     {
         let ctx = contexts.ctx_mut();
@@ -236,7 +231,7 @@ fn node_inspector_ui<T: View + Component + SystemNodeTrait>(
             ctx,
             &mut node_name,
             &mut node_type,
-            hostname,
+            hostnames,
             node.as_mut(),
             can_be_edited && app_state.0 == AppState::Edit,
             delete_node_event,
@@ -250,7 +245,7 @@ fn show_inspector<T: View>(
     ctx: &mut Context,
     node_name: &mut NodeName,
     node_type: &mut NodeType,
-    hostname: Option<Mut<'_, Hostname>>,
+    mut hostnames: Query<(Entity, &mut Hostname)>,
     node: &mut T,
     enabled: bool,
     mut delete_node_event: EventWriter<DeleteNodeEvent>,
@@ -264,8 +259,17 @@ fn show_inspector<T: View>(
                 node_type.ui(ui, enabled);
                 node_name.ui(ui, enabled);
 
-                if let Some(mut hostname) = hostname {
-                    hostname.ui(ui, enabled);
+                let mut entity_hostname_map: HashMap<Entity, &String> =
+                    HashMap::from_iter(hostnames.iter().map(|(e, h)| (e, &h.0)));
+
+                entity_hostname_map.remove(&entity);
+
+                let other_hostnames: HashSet<String> =
+                    HashSet::from_iter(entity_hostname_map.into_values().cloned());
+
+                if let Ok((_, mut hostname)) = hostnames.get_mut(entity) {
+                    let is_hostname_unique = !other_hostnames.contains(&hostname.0);
+                    hostname.ui(ui, enabled, is_hostname_unique);
                 }
 
                 node.ui(ui, enabled);
@@ -307,11 +311,34 @@ impl View for NodeName {
     }
 }
 
-impl View for Hostname {
-    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
+const ERROR_COLOR: Color32 = Color32::RED;
+const ERROR_FRAME_STROKE: egui::Stroke = egui::Stroke {
+    width: 1.0,
+    color: ERROR_COLOR,
+};
+
+fn create_error_frame(stroke: egui::Stroke) -> egui::Frame {
+    egui::Frame::none()
+        .stroke(stroke)
+        .inner_margin(egui::Margin::same(2.5))
+        .rounding(egui::Rounding::same(2.0))
+}
+
+impl Hostname {
+    fn ui(&mut self, ui: &mut egui::Ui, editable: bool, is_unique: bool) {
         ui.horizontal(|ui| {
+            let (stroke, override_text_color) = if is_unique && self.is_valid() {
+                (egui::Stroke::NONE, None)
+            } else {
+                (ERROR_FRAME_STROKE, Some(ERROR_COLOR))
+            };
+
+            ui.style_mut().visuals.override_text_color = override_text_color;
             ui.label("Hostname:");
-            ui.text_edit_label_toggle(editable, &mut self.0);
+            ui.style_mut().visuals.override_text_color = None;
+
+            create_error_frame(stroke)
+                .show(ui, |ui| ui.text_edit_label_toggle(editable, &mut self.0));
 
             if editable && ui.button("Copy").clicked() {
                 ui.output_mut(|o| o.copied_text = self.0.to_string());
@@ -344,8 +371,19 @@ impl View for Client {
 
         for (idx, config) in self.request_configs.iter_mut().enumerate() {
             ui.horizontal(|ui| {
+                let (stroke, override_text_color) = if config.is_url_valid() {
+                    (egui::Stroke::NONE, None)
+                } else {
+                    (ERROR_FRAME_STROKE, Some(ERROR_COLOR))
+                };
+
+                ui.style_mut().visuals.override_text_color = override_text_color;
                 ui.label("URL:");
-                ui.text_edit_label_toggle(editable, &mut config.url);
+                ui.style_mut().visuals.override_text_color = None;
+
+                create_error_frame(stroke).show(ui, |ui| {
+                    ui.text_edit_label_toggle(editable, &mut config.url)
+                });
 
                 if editable && ui.button("Copy").clicked() {
                     ui.output_mut(|o| o.copied_text = config.url.to_string());
@@ -353,8 +391,19 @@ impl View for Client {
             });
 
             ui.horizontal(|ui| {
+                let (stroke, override_text_color) = if config.is_path_valid() {
+                    (egui::Stroke::NONE, None)
+                } else {
+                    (ERROR_FRAME_STROKE, Some(ERROR_COLOR))
+                };
+
+                ui.style_mut().visuals.override_text_color = override_text_color;
                 ui.label("Path:");
-                ui.text_edit_label_toggle(editable, &mut config.path);
+                ui.style_mut().visuals.override_text_color = None;
+
+                create_error_frame(stroke).show(ui, |ui| {
+                    ui.text_edit_label_toggle(editable, &mut config.path);
+                });
 
                 if editable && ui.button("Copy").clicked() {
                     ui.output_mut(|o| o.copied_text = config.path.to_string());
@@ -382,16 +431,27 @@ impl View for Client {
             });
 
             if config.method == HttpMethod::Post || config.method == HttpMethod::Put {
+                let (stroke, override_text_color) = if config.is_body_valid() {
+                    (egui::Stroke::NONE, None)
+                } else {
+                    (ERROR_FRAME_STROKE, Some(ERROR_COLOR))
+                };
+
+                ui.style_mut().visuals.override_text_color = override_text_color;
                 ui.label("Body:");
-                ui.add(
-                    egui::TextEdit::multiline(&mut config.body)
-                        .interactive(editable)
-                        .font(egui::TextStyle::Monospace)
-                        .code_editor()
-                        .desired_rows(1)
-                        .lock_focus(true)
-                        .desired_width(f32::INFINITY),
-                );
+                ui.style_mut().visuals.override_text_color = None;
+
+                create_error_frame(stroke).show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut config.body)
+                            .interactive(editable)
+                            .font(egui::TextStyle::Monospace)
+                            .code_editor()
+                            .desired_rows(1)
+                            .lock_focus(true)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
             }
 
             if editable && ui.button("Delete Request").clicked() {
@@ -451,10 +511,25 @@ impl View for Server {
 
         let mut endpoint_idx_to_delete = None;
 
+        let endpoint_path_valid: Vec<_> = (0..self.endpoint_handlers.len())
+            .map(|e| self.is_path_valid(e))
+            .collect();
+
         for (idx, endpoint) in self.endpoint_handlers.iter_mut().enumerate() {
             ui.horizontal(|ui| {
+                let (stroke, override_text_color) = if endpoint_path_valid[idx] {
+                    (egui::Stroke::NONE, None)
+                } else {
+                    (ERROR_FRAME_STROKE, Some(ERROR_COLOR))
+                };
+
+                ui.style_mut().visuals.override_text_color = override_text_color;
                 ui.label("Path:");
-                ui.text_edit_label_toggle(editable, &mut endpoint.path);
+                ui.style_mut().visuals.override_text_color = None;
+
+                create_error_frame(stroke).show(ui, |ui| {
+                    ui.text_edit_label_toggle(editable, &mut endpoint.path);
+                });
             });
 
             if editable {
@@ -473,18 +548,29 @@ impl View for Server {
                 ui.label(format_method(&endpoint.method));
             }
 
-            egui::CollapsingHeader::new("Request handler")
+            let mut header_text = egui::RichText::new("Request handler");
+
+            let stroke = if endpoint.is_handler_valid() {
+                egui::Stroke::NONE
+            } else {
+                header_text = header_text.color(ERROR_COLOR);
+                ERROR_FRAME_STROKE
+            };
+
+            egui::CollapsingHeader::new(header_text)
                 .id_source(idx)
                 .show(ui, |ui| {
-                    ui.add(
-                        egui::TextEdit::multiline(&mut endpoint.handler)
-                            .interactive(editable)
-                            .font(egui::TextStyle::Monospace) // for cursor height
-                            .code_editor()
-                            .desired_rows(1)
-                            .lock_focus(true)
-                            .desired_width(f32::INFINITY),
-                    );
+                    create_error_frame(stroke).show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut endpoint.handler)
+                                .interactive(editable)
+                                .font(egui::TextStyle::Monospace) // for cursor height
+                                .code_editor()
+                                .desired_rows(1)
+                                .lock_focus(true)
+                                .desired_width(f32::INFINITY),
+                        );
+                    });
                 });
 
             if editable && ui.button("Delete endpoint").clicked() {

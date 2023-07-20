@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use bevy::prelude::{warn, Component, Entity, EventWriter, Query};
 use boa_engine::{property::Attribute, Context, JsResult, JsValue};
@@ -26,6 +26,22 @@ pub struct Endpoint {
     pub path: String,
     pub method: HttpMethod,
     pub handler: String,
+}
+
+impl Endpoint {
+    fn is_path_valid(&self) -> bool {
+        !self.path.is_empty() && self.path.starts_with('/') && !self.path.ends_with('/')
+    }
+
+    pub fn is_handler_valid(&self) -> bool {
+        if self.handler.is_empty() {
+            return false;
+        }
+
+        let mut context = Context::default();
+
+        context.parse(&self.handler).is_ok()
+    }
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
@@ -101,6 +117,34 @@ impl Server {
         self.message_queue.drain(..);
         self.active_executions.clear();
     }
+
+    pub fn is_path_valid(&self, idx: usize) -> bool {
+        if !self.endpoint_handlers[idx].is_path_valid() {
+            return false;
+        }
+
+        let mut endpoints = self.endpoint_handlers.clone();
+        let endpoint_to_check = endpoints.swap_remove(idx);
+
+        let other_endpoints: HashSet<(String, HttpMethod)> =
+            HashSet::from_iter(endpoints.iter().map(|e| (strip_params(&e.path), e.method)));
+
+        let endpoint = (
+            strip_params(&endpoint_to_check.path),
+            endpoint_to_check.method,
+        );
+
+        !other_endpoints.contains(&endpoint)
+    }
+}
+
+fn strip_params(path: &str) -> String {
+    let segments: Vec<_> = path
+        .split('/')
+        .map(|seg| if seg.starts_with(':') { "param" } else { seg })
+        .collect();
+
+    segments.join("/")
 }
 
 impl SystemNodeTrait for Server {

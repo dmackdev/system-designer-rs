@@ -153,6 +153,19 @@ impl RequestConfig {
             None => false,
         }
     }
+
+    pub fn is_url_valid(&self) -> bool {
+        !self.url.is_empty()
+    }
+
+    pub fn is_path_valid(&self) -> bool {
+        !self.path.is_empty()
+    }
+
+    pub fn is_body_valid(&self) -> bool {
+        let res: Result<Value, _> = serde_json::from_str(&self.body);
+        res.is_ok()
+    }
 }
 
 #[derive(Deserialize, Clone, Debug)]

@@ -82,6 +82,12 @@ impl NodeName {
 #[derive(Default, Component)]
 pub struct Hostname(pub String);
 
+impl Hostname {
+    pub fn is_valid(&self) -> bool {
+        !self.0.is_empty()
+    }
+}
+
 #[derive(SystemParam)]
 pub struct HostnameConnections<'w, 's> {
     hostnames: Query<'w, 's, (Entity, &'static Hostname)>,
