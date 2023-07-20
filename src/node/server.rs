@@ -30,7 +30,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     fn is_path_valid(&self) -> bool {
-        !self.path.is_empty() && self.path.starts_with('/') && !self.path.ends_with('/')
+        self.path.starts_with('/') && (self.path.len() == 1 || !self.path.ends_with('/'))
     }
 
     pub fn is_handler_valid(&self) -> bool {
