@@ -42,6 +42,10 @@ impl Endpoint {
 
         context.parse(&self.handler).is_ok()
     }
+
+    fn is_valid(&self) -> bool {
+        self.is_path_valid() && self.is_handler_valid()
+    }
 }
 
 const EXAMPLE_REQUEST_HANDLER: &str = r#"const requestHandler = function* () {
@@ -135,6 +139,20 @@ impl Server {
         );
 
         !other_endpoints.contains(&endpoint)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        let unique_endpoints: HashSet<(String, HttpMethod)> = HashSet::from_iter(
+            self.endpoint_handlers
+                .iter()
+                .map(|e| (strip_params(&e.path), e.method)),
+        );
+
+        if unique_endpoints.len() != self.endpoint_handlers.len() {
+            return false;
+        }
+
+        self.endpoint_handlers.iter().all(|e| e.is_valid())
     }
 }
 

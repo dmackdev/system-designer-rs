@@ -1,6 +1,9 @@
-use bevy::prelude::{
-    Commands, Component, DespawnRecursiveExt, Entity, IntoSystemAppConfigs, IntoSystemConfig,
-    IntoSystemConfigs, NextState, OnEnter, OnUpdate, Plugin, Query, ResMut, With,
+use bevy::{
+    prelude::{
+        Commands, Component, DespawnRecursiveExt, Entity, IntoSystemAppConfigs, IntoSystemConfig,
+        IntoSystemConfigs, NextState, OnEnter, OnUpdate, Plugin, Query, ResMut, With,
+    },
+    utils::HashSet,
 };
 
 use crate::{
@@ -11,7 +14,7 @@ use crate::{
         client::{client_system, Client, ClientState},
         database::{database_system, Database},
         server::{server_system, Server},
-        SystemNodeTrait,
+        Hostname, SystemNodeTrait,
     },
 };
 
@@ -39,6 +42,8 @@ impl Plugin for SimulationPlugin {
             )
                 .in_schedule(OnEnter(AppState::Edit)),
         );
+
+        app.add_system(validate.in_set(OnUpdate(AppState::Validate)));
     }
 }
 
@@ -61,6 +66,24 @@ fn destroy_in_flight_messages(
     for message_entity in message_query.iter() {
         commands.entity(message_entity).despawn_recursive();
     }
+}
+
+fn validate(
+    mut app_state: ResMut<NextState<AppState>>,
+    hostnames: Query<&Hostname>,
+    clients: Query<&Client>,
+    servers: Query<&Server>,
+) {
+    if HashSet::from_iter(hostnames.iter().map(|h| h.0.clone())).len() != hostnames.iter().len()
+        || !hostnames.iter().all(|h| h.is_valid())
+        || !clients.iter().all(|c| c.is_valid())
+        || !servers.iter().all(|s| s.is_valid())
+    {
+        app_state.set(AppState::Edit);
+        return;
+    }
+
+    app_state.set(AppState::Simulate)
 }
 
 fn verify_solution(

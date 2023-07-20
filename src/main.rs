@@ -65,8 +65,11 @@ fn main() {
 
     app.configure_set(
         GridSet.run_if(
-            in_state(AppState::Simulate)
-                .or_else(in_state(AppState::SimulateFinish).or_else(in_state(AppState::Edit))),
+            in_state(AppState::Edit).or_else(
+                in_state(AppState::Validate).or_else(
+                    in_state(AppState::Simulate).or_else(in_state(AppState::SimulateFinish)),
+                ),
+            ),
         ),
     );
 

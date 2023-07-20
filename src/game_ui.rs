@@ -142,7 +142,7 @@ fn tools_ui(
                     ui.heading("Simulation");
 
                     if ui.button("Execute").clicked() {
-                        app_state.set(AppState::Simulate);
+                        app_state.set(AppState::Validate);
                     }
                 });
             });

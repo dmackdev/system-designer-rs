@@ -7,6 +7,7 @@ pub enum AppState {
     MainMenu,
     LevelSelect,
     Edit,
+    Validate,
     Simulate,
     SimulateFinish,
 }

@@ -52,6 +52,10 @@ impl Client {
             .map(|request_config| request_config.verify())
             .all(|b| b)
     }
+
+    pub fn is_valid(&self) -> bool {
+        self.request_configs.iter().all(|config| config.is_valid())
+    }
 }
 
 impl SystemNodeTrait for Client {
@@ -165,6 +169,10 @@ impl RequestConfig {
     pub fn is_body_valid(&self) -> bool {
         let res: Result<Value, _> = serde_json::from_str(&self.body);
         res.is_ok()
+    }
+
+    fn is_valid(&self) -> bool {
+        self.is_url_valid() && self.is_path_valid() && self.is_body_valid()
     }
 }
 
