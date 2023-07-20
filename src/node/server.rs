@@ -505,8 +505,6 @@ gen.next(lastGenResult);
             Ok(v) => Ok(v),
             Err(e) => Err(e.into()),
         }
-
-        // serde_json::from_value(latest_value)? // TODO: For some reason this always errors, but the above works??
     }
 }
 
