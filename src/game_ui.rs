@@ -340,7 +340,7 @@ impl Hostname {
             create_error_frame(stroke)
                 .show(ui, |ui| ui.text_edit_label_toggle(editable, &mut self.0));
 
-            if editable && ui.button("Copy").clicked() {
+            if ui.button("Copy").clicked() {
                 ui.output_mut(|o| o.copied_text = self.0.to_string());
             }
         });
@@ -385,7 +385,7 @@ impl View for Client {
                     ui.text_edit_label_toggle(editable, &mut config.url)
                 });
 
-                if editable && ui.button("Copy").clicked() {
+                if ui.button("Copy").clicked() {
                     ui.output_mut(|o| o.copied_text = config.url.to_string());
                 }
             });
@@ -405,7 +405,7 @@ impl View for Client {
                     ui.text_edit_label_toggle(editable, &mut config.path);
                 });
 
-                if editable && ui.button("Copy").clicked() {
+                if ui.button("Copy").clicked() {
                     ui.output_mut(|o| o.copied_text = config.path.to_string());
                 }
             });
