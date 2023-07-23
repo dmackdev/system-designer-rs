@@ -20,7 +20,7 @@ use crate::{
         server::{Endpoint, Server},
         Hostname, NodeName, NodeType, SystemNodeTrait,
     },
-    GridSet, MainMenuSet,
+    GridSet, Handles, MainMenuSet,
 };
 
 use bevy::prelude::*;
@@ -90,6 +90,7 @@ fn main_menu_ui(
 fn level_select_ui(
     mut contexts: EguiContexts,
     mut app_state: ResMut<NextState<AppState>>,
+    handles: Res<Handles>,
     levels: Res<Assets<Level>>,
     mut level_state: ResMut<LevelState>,
 ) {
@@ -99,7 +100,8 @@ fn level_select_ui(
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.heading("Levels");
 
-            for (idx, (_, level)) in levels.iter().enumerate() {
+            for (idx, level_handle) in handles.levels.iter().enumerate() {
+                let level = levels.get(level_handle).unwrap();
                 let level_button_label = format!("Level {}: {}", idx + 1, level.name);
 
                 if ui.button(level_button_label).clicked() {
