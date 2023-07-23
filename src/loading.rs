@@ -4,7 +4,7 @@ use crate::{game_state::AppState, Handles};
 
 pub struct LoadingPlugin;
 
-pub const NUM_LEVELS: u32 = 1;
+pub const NUM_LEVELS: u32 = 2;
 
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {

@@ -1,0 +1,38 @@
+Level(
+  name: "Create",
+  description: 
+r#"In order to complete this level, you must return a response to the Client with:
+  - the appropriate status code,
+  - the full created entity as the payload.
+
+Good luck!"#,
+  clients: [
+    ClientConfig(
+      name: "user1",
+      x: 0.0,
+      y: 0.0,
+      request_configs: [
+        RequestConfig(
+              url: "level-2.com",
+              path: "/users",
+              method: Post,
+              body: 
+r#"{ 
+  "id": 0,
+  "name": "John",
+  "surname": "Smith",
+  "age": 51
+}"#,
+              trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A",
+              expectations: [Status(201), ExactBody({
+                "id": 0,
+                "name": "John",
+                "surname": "Smith",
+                "age": 51
+              })],
+              expectations_results: []
+        )  
+      ]
+    ),
+  ]
+)
