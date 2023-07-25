@@ -21,7 +21,7 @@ pub struct Server {
     can_be_edited: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Endpoint {
     pub path: String,
     pub method: HttpMethod,
@@ -34,6 +34,7 @@ impl Endpoint {
     }
 
     pub fn is_handler_valid(&self) -> bool {
+        println!("is_handler_valid");
         if self.handler.is_empty() {
             return false;
         }

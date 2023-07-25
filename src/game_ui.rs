@@ -2,7 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::{App, EventWriter, Plugin, SystemSet};
 use bevy_egui::{
-    egui::{self, text::LayoutJob, Color32, Context, TextFormat},
+    egui::{
+        self,
+        text::LayoutJob,
+        util::cache::{ComputerMut, FrameCache},
+        Color32, Context, TextFormat,
+    },
     EguiContexts,
 };
 use bevy_mod_picking::selection::PickSelection;
@@ -255,11 +260,11 @@ fn show_inspector<T: View>(
 ) {
     egui::SidePanel::right("inspector")
         .default_width(200.0)
-        .show(ctx, |ui| {
+        .show(&ctx.clone(), |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("Inspector");
-                node_type.ui(ui, enabled);
-                node_name.ui(ui, enabled);
+                node_type.ui(ctx, ui, enabled);
+                node_name.ui(ctx, ui, enabled);
 
                 let mut entity_hostname_map: HashMap<Entity, &String> =
                     HashMap::from_iter(hostnames.iter().map(|(e, h)| (e, &h.0)));
@@ -274,7 +279,7 @@ fn show_inspector<T: View>(
                     hostname.ui(ui, enabled, is_hostname_unique);
                 }
 
-                node.ui(ui, enabled);
+                node.ui(ctx, ui, enabled);
 
                 if enabled && ui.button("Delete node").clicked() {
                     delete_node_event.send(DeleteNodeEvent(entity));
@@ -300,11 +305,11 @@ impl ToggleEditableUi for egui::Ui {
 }
 
 trait View {
-    fn ui(&mut self, ui: &mut egui::Ui, editable: bool);
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, editable: bool);
 }
 
 impl View for NodeName {
-    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, editable: bool) {
         ui.horizontal(|ui| {
             ui.label("Name:");
 
@@ -350,7 +355,7 @@ impl Hostname {
 }
 
 impl View for NodeType {
-    fn ui(&mut self, ui: &mut egui::Ui, _: bool) {
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, _: bool) {
         ui.horizontal(|ui| {
             ui.label("Type:");
             ui.label(format!("{}", self));
@@ -363,7 +368,7 @@ fn format_method(method: &HttpMethod) -> String {
 }
 
 impl View for Client {
-    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, editable: bool) {
         ui.separator();
 
         ui.heading("Requests");
@@ -506,7 +511,7 @@ impl View for Client {
 }
 
 impl View for Server {
-    fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, editable: bool) {
         ui.separator();
         ui.heading("Endpoints");
         ui.separator();
@@ -552,7 +557,12 @@ impl View for Server {
 
             let mut header_text = egui::RichText::new("Request handler");
 
-            let stroke = if endpoint.is_handler_valid() {
+            let valid = ctx.memory_mut(|mem| {
+                let cache = mem.caches.cache::<ServerHandlerValidatorCache<'_>>();
+                cache.get(endpoint)
+            });
+
+            let stroke = if valid {
                 egui::Stroke::NONE
             } else {
                 header_text = header_text.color(ERROR_COLOR);
@@ -592,8 +602,17 @@ impl View for Server {
     }
 }
 
+#[derive(Default)]
+struct ServerHandlerValidator {}
+impl ComputerMut<&Endpoint, bool> for ServerHandlerValidator {
+    fn compute(&mut self, endpoint: &Endpoint) -> bool {
+        endpoint.is_handler_valid()
+    }
+}
+type ServerHandlerValidatorCache<'a> = FrameCache<bool, ServerHandlerValidator>;
+
 impl View for Database {
-    fn ui(&mut self, ui: &mut egui::Ui, _editable: bool) {
+    fn ui(&mut self, ctx: &mut Context, ui: &mut egui::Ui, _editable: bool) {
         ui.separator();
         ui.heading("Documents");
 
