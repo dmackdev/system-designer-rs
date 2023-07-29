@@ -180,6 +180,7 @@ impl RequestConfig {
 pub enum ResponseExpectation {
     Status(u16),
     ExactBody(Value),
+    ExactSet(Vec<Value>),
 }
 impl ResponseExpectation {
     fn verify(&self, response: &Response) -> (bool, String) {
@@ -190,6 +191,24 @@ impl ResponseExpectation {
             ResponseExpectation::ExactBody(expected) => {
                 get_expectation_result("body", expected, &response.data)
             }
+            ResponseExpectation::ExactSet(expected_elems) => match &response.data {
+                Value::Array(actual_elems) => {
+                    let passed = expected_elems.len() == actual_elems.len()
+                        && actual_elems.iter().all(|e| expected_elems.contains(e));
+
+                    let mut msg = format!("Expected {} {:?}", "body", expected_elems);
+
+                    if !passed {
+                        msg.push_str(&format!(", received {:?}", actual_elems));
+                    }
+
+                    println!("ExactSet expectation:");
+                    println!("{:?}", msg);
+
+                    (passed, msg)
+                }
+                _ => (false, String::default()),
+            },
         }
     }
 }

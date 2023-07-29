@@ -7,7 +7,7 @@ use crate::message::{DatabaseCallType, Message, MessageComponent, SendMessageEve
 
 use super::SystemNodeTrait;
 
-type Document = Map<String, Value>;
+pub type Document = Map<String, Value>;
 
 #[derive(Component, Clone, Debug)]
 pub struct Database {
@@ -27,6 +27,21 @@ impl Database {
             message_queue: Default::default(),
             can_be_edited: true,
         }
+    }
+
+    pub fn editable(mut self, editable: bool) -> Self {
+        self.can_be_edited = editable;
+        self
+    }
+
+    pub fn initial_documents(mut self, initial_documents: Vec<Document>) -> Self {
+        self.initial_documents = HashMap::from_iter(
+            initial_documents
+                .into_iter()
+                .map(|d| (d.get("id").unwrap().as_i64().unwrap() as i32, d)),
+        );
+        self.documents = self.initial_documents.clone();
+        self
     }
 
     fn save(&mut self, mut doc: Document) -> Document {

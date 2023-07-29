@@ -1,4 +1,4 @@
-use crate::node::{client::Client, database::Database, server::Server, NodeType};
+use crate::node::{client::Client, database::Database, server::Server, Hostname, NodeType};
 
 pub struct AddComponentEvent(pub AddComponentPayload);
 
@@ -12,7 +12,10 @@ impl AddComponentEvent {
     }
 
     pub fn new_database() -> Self {
-        AddComponentEvent(AddComponentPayload::Database(Database::new()))
+        AddComponentEvent(AddComponentPayload::Database(
+            Hostname::default(),
+            Database::new(),
+        ))
     }
 }
 
@@ -20,7 +23,7 @@ impl AddComponentEvent {
 pub enum AddComponentPayload {
     Client(Client),
     Server(Server),
-    Database(Database),
+    Database(Hostname, Database),
 }
 
 impl AddComponentPayload {
@@ -28,7 +31,7 @@ impl AddComponentPayload {
         match self {
             AddComponentPayload::Client(_) => NodeType::Client,
             AddComponentPayload::Server(_) => NodeType::Server,
-            AddComponentPayload::Database(_) => NodeType::Database,
+            AddComponentPayload::Database(_, _) => NodeType::Database,
         }
     }
 }

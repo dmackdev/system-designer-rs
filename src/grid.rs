@@ -18,8 +18,10 @@ use crate::{
     events::{AddComponentEvent, AddComponentPayload},
     game_state::AppState,
     layer,
-    level::{ClientConfig, CurrentLevel},
-    node::{client::Client, Hostname, NodeConnections, NodeType, SystemNodeBundle},
+    level::{ClientConfig, CurrentLevel, DatabaseConfig},
+    node::{
+        client::Client, database::Database, Hostname, NodeConnections, NodeType, SystemNodeBundle,
+    },
     EditSet,
 };
 
@@ -170,6 +172,34 @@ fn spawn_grid(
 
             children.push(component_entity);
         }
+
+        for DatabaseConfig {
+            name,
+            x,
+            y,
+            initial_documents,
+            hostname,
+        } in level.databases.iter()
+        {
+            let database = Database::new()
+                .editable(false)
+                .initial_documents(initial_documents.to_vec());
+
+            let system_bundle = SystemNodeBundle::new(NodeType::Database).node_name(name.into());
+
+            let component_entity = create_component(
+                &mut commands,
+                &asset_server,
+                &mut meshes,
+                &mut materials,
+                system_bundle,
+                AddComponentPayload::Database(Hostname(hostname.to_string()), database),
+                *x,
+                *y,
+            );
+
+            children.push(component_entity);
+        }
     }
 
     commands.entity(grid_root_entity).push_children(&children);
@@ -256,8 +286,8 @@ fn create_component(
     match component {
         AddComponentPayload::Client(client) => node_entity.insert(client),
         AddComponentPayload::Server(server) => node_entity.insert((server, Hostname::default())),
-        AddComponentPayload::Database(database) => {
-            node_entity.insert((database, Hostname::default()))
+        AddComponentPayload::Database(hostname, database) => {
+            node_entity.insert((database, hostname))
         }
     };
 

@@ -79,7 +79,7 @@ impl NodeName {
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Clone)]
 pub struct Hostname(pub String);
 
 impl Hostname {
