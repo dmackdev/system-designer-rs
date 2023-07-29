@@ -1,0 +1,91 @@
+Level(
+  name: "Read",
+  description: 
+r#"In order to complete this level, you must return a response to the Client with:
+  - the appropriate status code,
+  - the full created entity as the payload.
+
+Good luck!"#,
+  clients: [
+    ClientConfig(
+      name: "user1",
+      x: 0.0,
+      y: 0.0,
+      request_configs: [
+        RequestConfig(
+              url: "level-3.com",
+              path: "/users/0",
+              method: Get,
+              body: "{}",
+              trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A",
+              expectations: [Status(200), ExactBody({
+                "id": 0,
+                "name": "John",
+                "surname": "Smith",
+                "age": 51
+              })],
+              expectations_results: []
+        ),
+              RequestConfig(
+              url: "level-3.com",
+              path: "/users",
+              method: Get,
+              body: "{}",
+              trace_id: "BC5AD600-3FE8-4571-AA95-0BCEB01D7E58",
+              expectations: [Status(200), 
+              ExactSet(
+                [
+                  {
+                    "id": 0,
+                    "name": "John",
+                    "surname": "Smith",
+                    "age": 51
+                  },
+                  {
+                    "id": 1,
+                    "name": "Alice",
+                    "surname": "Smith",
+                    "age": 28
+                  },
+                  {
+                    "id": 2,
+                    "name": "Uncle",
+                    "surname": "Bob",
+                    "age": 66
+                  }
+                ]
+              )],
+              expectations_results: []
+        )   
+      ]
+    ),
+  ],
+  databases: [
+    DatabaseConfig(
+      name: "user-database",
+      hostname: "db1",
+      x: 0.0,
+      y: 200.0,
+      initial_documents: [
+        {
+          "id": 0,
+          "name": "John",
+          "surname": "Smith",
+          "age": 51
+        },
+        {
+          "id": 1,
+          "name": "Alice",
+          "surname": "Smith",
+          "age": 28
+        },
+        {
+          "id": 2,
+          "name": "Uncle",
+          "surname": "Bob",
+          "age": 66
+        }
+      ]
+    )
+  ]
+)
