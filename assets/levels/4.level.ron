@@ -1,0 +1,76 @@
+Level(
+  name: "Load Balancer",
+  description:
+r#"TODO"#,
+  clients: [
+    ClientConfig(
+      name: "user1",
+      x: -200.0,
+      y: 0.0,
+      request_configs: [
+        RequestConfig(
+          url: "level-4.com",
+          path: "/",
+          method: Get,
+          body: "{}",
+          trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A",
+          expectations: [Status(200)],
+          expectations_results: []
+        )  
+      ]
+    ),
+    ClientConfig(
+      name: "user2",
+      x: 0.0,
+      y: -200.0,
+      request_configs: [
+         RequestConfig(
+          url: "level-4.com",
+          path: "/",
+          method: Get,
+          body: "{}",
+          trace_id: "497F3675-27DF-4338-BF26-A8D8AA8D1BDE",
+          expectations: [Status(200)],
+          expectations_results: []
+        )  
+      ]
+    ),
+    ClientConfig(
+      name: "user3",
+      x: 200.0,
+      y: 0.0,
+      request_configs: [
+         RequestConfig(
+          url: "level-4.com",
+          path: "/",
+          method: Get,
+          body: "{}",
+          trace_id: "502A6133-BF39-4880-8B14-8BBF994C52EB",
+          expectations: [Status(200)],
+          expectations_results: []
+        )  
+      ]
+    )
+  ],
+  databases: [],
+  servers: [
+    ServerConfig(
+      name: "load-balancer",
+      x: 0.0,
+      y: 0.0,
+      max_concurrent_connections: Some(3)
+    ),
+    ServerConfig(
+      name: "server1",
+      x: -150.0,
+      y: 100.0,
+      max_concurrent_connections: Some(2)
+    ),
+    ServerConfig(
+      name: "server2",
+      x: 150.0,
+      y: 100.0,
+      max_concurrent_connections: Some(2)
+    )
+  ]
+)

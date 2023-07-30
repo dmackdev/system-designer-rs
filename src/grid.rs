@@ -18,9 +18,10 @@ use crate::{
     events::{AddComponentEvent, AddComponentPayload},
     game_state::AppState,
     layer,
-    level::{ClientConfig, CurrentLevel, DatabaseConfig},
+    level::{ClientConfig, CurrentLevel, DatabaseConfig, ServerConfig},
     node::{
-        client::Client, database::Database, Hostname, NodeConnections, NodeType, SystemNodeBundle,
+        client::Client, database::Database, server::Server, Hostname, NodeConnections, NodeType,
+        SystemNodeBundle,
     },
     EditSet,
 };
@@ -200,6 +201,32 @@ fn spawn_grid(
 
             children.push(component_entity);
         }
+
+        for ServerConfig {
+            name,
+            x,
+            y,
+            max_concurrent_connections,
+        } in level.servers.iter()
+        {
+            let server =
+                Server::default().with_max_concurrent_connections(*max_concurrent_connections);
+
+            let system_bundle = SystemNodeBundle::new(NodeType::Server).node_name(name.into());
+
+            let component_entity = create_component(
+                &mut commands,
+                &asset_server,
+                &mut meshes,
+                &mut materials,
+                system_bundle,
+                AddComponentPayload::Server(Hostname::default(), server),
+                *x,
+                *y,
+            );
+
+            children.push(component_entity);
+        }
     }
 
     commands.entity(grid_root_entity).push_children(&children);
@@ -285,7 +312,7 @@ fn create_component(
 
     match component {
         AddComponentPayload::Client(client) => node_entity.insert(client),
-        AddComponentPayload::Server(server) => node_entity.insert((server, Hostname::default())),
+        AddComponentPayload::Server(hostname, server) => node_entity.insert((hostname, server)),
         AddComponentPayload::Database(hostname, database) => {
             node_entity.insert((database, hostname))
         }

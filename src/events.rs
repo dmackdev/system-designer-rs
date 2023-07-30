@@ -8,7 +8,10 @@ impl AddComponentEvent {
     }
 
     pub fn new_server() -> Self {
-        AddComponentEvent(AddComponentPayload::Server(Server::default()))
+        AddComponentEvent(AddComponentPayload::Server(
+            Hostname::default(),
+            Server::default(),
+        ))
     }
 
     pub fn new_database() -> Self {
@@ -22,7 +25,7 @@ impl AddComponentEvent {
 #[derive(Clone)]
 pub enum AddComponentPayload {
     Client(Client),
-    Server(Server),
+    Server(Hostname, Server),
     Database(Hostname, Database),
 }
 
@@ -30,7 +33,7 @@ impl AddComponentPayload {
     pub fn get_node_type(&self) -> NodeType {
         match self {
             AddComponentPayload::Client(_) => NodeType::Client,
-            AddComponentPayload::Server(_) => NodeType::Server,
+            AddComponentPayload::Server(_, _) => NodeType::Server,
             AddComponentPayload::Database(_, _) => NodeType::Database,
         }
     }

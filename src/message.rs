@@ -108,6 +108,13 @@ impl Response {
             data: Value::String("Bad request.".to_string()),
         }
     }
+
+    pub fn service_unavailable() -> Self {
+        Self {
+            status: 503,
+            data: Value::String("Service Unavailable.".to_string()),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

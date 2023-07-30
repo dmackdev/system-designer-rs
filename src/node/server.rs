@@ -19,6 +19,7 @@ pub struct Server {
     pub state: ServerState,
     active_executions: HashMap<Uuid, ServerExecution>,
     can_be_edited: bool,
+    max_concurrent_connections: Option<u8>,
 }
 
 #[derive(Clone, Debug)]
@@ -70,11 +71,32 @@ impl Default for Server {
             active_executions: Default::default(),
             endpoint_handlers: vec![Endpoint::default()],
             can_be_edited: true,
+            max_concurrent_connections: None,
         }
     }
 }
 
 impl Server {
+    fn can_handle_new_request(&self) -> bool {
+        if let Some(max_concurrent_connections) = self.max_concurrent_connections {
+            let num_current_connections = self.active_executions.len();
+            return num_current_connections < max_concurrent_connections.into();
+        };
+        true
+    }
+
+    pub fn with_max_concurrent_connections(
+        mut self,
+        max_concurrent_connections: Option<u8>,
+    ) -> Self {
+        self.max_concurrent_connections = max_concurrent_connections;
+        self
+    }
+
+    pub fn max_concurrent_connections(&self) -> Option<u8> {
+        self.max_concurrent_connections
+    }
+
     fn create_execution_for_request(
         &mut self,
         mut request: Request,
@@ -212,9 +234,19 @@ pub fn server_system(
 
                 for message in message_queue {
                     let handle_message_result = match message.message {
-                        Message::Request(request) => server
-                            .create_execution_for_request(request, message.sender, message.trace_id)
-                            .ok_or(ExecutionError::NotFound),
+                        Message::Request(request) => {
+                            if server.can_handle_new_request() {
+                                server
+                                    .create_execution_for_request(
+                                        request,
+                                        message.sender,
+                                        message.trace_id,
+                                    )
+                                    .ok_or(ExecutionError::NotFound)
+                            } else {
+                                Err(ExecutionError::ServiceUnavailable)
+                            }
+                        }
                         Message::Response(response) => {
                             let mut execution =
                                 server.active_executions.remove(&message.trace_id).unwrap();
@@ -369,6 +401,7 @@ enum ExecutionError {
     NotFound,
     BadRequest,
     InternalServerError(Value),
+    ServiceUnavailable,
 }
 
 impl From<JsResult<Value>> for ExecutionError {
@@ -386,6 +419,7 @@ impl From<ExecutionError> for Response {
             ExecutionError::NotFound => Response::not_found(),
             ExecutionError::BadRequest => Response::bad_request(),
             ExecutionError::InternalServerError(value) => Response::internal_server_error(value),
+            ExecutionError::ServiceUnavailable => Response::service_unavailable(),
         }
     }
 }

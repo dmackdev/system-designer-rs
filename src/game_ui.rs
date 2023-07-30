@@ -508,6 +508,12 @@ impl View for Client {
 impl View for Server {
     fn ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         ui.separator();
+
+        if let Some(max_concurrent_connections) = self.max_concurrent_connections() {
+            ui.label("Max Concurrent Connections:");
+            ui.label(max_concurrent_connections.to_string());
+        }
+
         ui.heading("Endpoints");
         ui.separator();
 

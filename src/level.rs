@@ -17,6 +17,7 @@ pub struct Level {
     pub description: String,
     pub clients: Vec<ClientConfig>,
     pub databases: Vec<DatabaseConfig>,
+    pub servers: Vec<ServerConfig>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -25,6 +26,14 @@ pub struct ClientConfig {
     pub x: f32,
     pub y: f32,
     pub request_configs: Vec<RequestConfig>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ServerConfig {
+    pub name: String,
+    pub x: f32,
+    pub y: f32,
+    pub max_concurrent_connections: Option<u8>,
 }
 
 #[derive(Deserialize, Debug)]
