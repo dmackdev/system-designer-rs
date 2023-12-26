@@ -462,7 +462,7 @@ impl ServerExecution {
 
         let http_script = r#"
 const http = {
-  get: function(url, path, params) { return { Request: { url, path, method: "Get", body: null, params }}; },
+  get: function(url, path) { return { Request: { url, path, method: "Get", body: null, params: {} }}; },
 }
         "#;
 
