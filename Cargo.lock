@@ -961,23 +961,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_system_architect"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_common_assets",
- "bevy_egui",
- "bevy_mod_picking",
- "bevy_prototype_lyon",
- "boa_engine",
- "egui-modal",
- "serde",
- "serde_json",
- "strum",
- "uuid",
-]
-
-[[package]]
 name = "bevy_tasks"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3453,6 +3436,23 @@ dependencies = [
  "ntapi",
  "once_cell",
  "winapi",
+]
+
+[[package]]
+name = "system-designer-rs"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_common_assets",
+ "bevy_egui",
+ "bevy_mod_picking",
+ "bevy_prototype_lyon",
+ "boa_engine",
+ "egui-modal",
+ "serde",
+ "serde_json",
+ "strum",
+ "uuid",
 ]
 
 [[package]]
