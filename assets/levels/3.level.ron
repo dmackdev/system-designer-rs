@@ -13,21 +13,20 @@ Good luck!"#,
       y: 0.0,
       request_configs: [
         RequestConfig(
-              url: "level-3.com",
+              url: "users-api.com",
               path: "/users/0",
               method: Get,
               body: "{}",
               trace_id: "F94A3B4B-B228-4B68-B554-FB044E5A9C3A",
               expectations: [Status(200), ExactBody({
                 "id": 0,
-                "name": "John",
-                "surname": "Smith",
+                "name": "Alice",
                 "age": 51
               })],
               expectations_results: []
         ),
               RequestConfig(
-              url: "level-3.com",
+              url: "users-api.com",
               path: "/users",
               method: Get,
               body: "{}",
@@ -37,20 +36,17 @@ Good luck!"#,
                 [
                   {
                     "id": 0,
-                    "name": "John",
-                    "surname": "Smith",
+                    "name": "Alice",
                     "age": 51
                   },
                   {
                     "id": 1,
-                    "name": "Alice",
-                    "surname": "Smith",
+                    "name": "Bob",
                     "age": 28
                   },
                   {
                     "id": 2,
-                    "name": "Uncle",
-                    "surname": "Bob",
+                    "name": "Charlie",
                     "age": 66
                   }
                 ]
@@ -62,27 +58,24 @@ Good luck!"#,
   ],
   databases: [
     DatabaseConfig(
-      name: "user-database",
-      hostname: "db1",
+      name: "User Database",
+      hostname: "users-db",
       x: 0.0,
       y: 200.0,
       initial_documents: [
         {
           "id": 0,
-          "name": "John",
-          "surname": "Smith",
+          "name": "Alice",
           "age": 51
         },
         {
           "id": 1,
-          "name": "Alice",
-          "surname": "Smith",
+          "name": "Bob",
           "age": 28
         },
         {
           "id": 2,
-          "name": "Uncle",
-          "surname": "Bob",
+          "name": "Charlie",
           "age": 66
         }
       ]
