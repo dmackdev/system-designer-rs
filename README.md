@@ -136,7 +136,7 @@ A function to construct a response from the endpoint handler.
 
 #### Methods:
 
-- `function* response(status: number, body: Vaue): Response`
+- `function* response(status: number, body: Value): Response`
 
 #### Example Usage:
 
