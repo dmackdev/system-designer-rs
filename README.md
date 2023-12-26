@@ -2,6 +2,12 @@
 
 `system-designer-rs` is a puzzle game that combines system design and programming, built in Rust and the [Bevy](https://bevyengine.org/) game engine.
 
+<p align="center">
+  <img src="./docs/level-3-playthrough.png" alt="Screenshot"/>
+</p>
+
+[See level playthrough video](https://youtu.be/1Rc2Toke0O8).
+
 ## Run the game
 
 Install [Rust](https://www.rust-lang.org/tools/install), then execute from your terminal:
