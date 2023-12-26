@@ -1,9 +1,16 @@
 Level(
-  name: "Read",
+  name: "Users API",
   description: 
-r#"In order to complete this level, you must return a response to the Client with:
-  - the appropriate status code,
-  - the full created entity as the payload.
+r#"For this level, you are building a Users API to surface User information from a Database.
+
+You must build a Server with two endpoints:
+  
+  1. An endpoint to return a single User from the Database by ID,
+  2. An endpoint to return a list of all Users in the Database.
+
+Inspect the Client's requests to figure out the endpoint paths.
+
+Remember to use the appropriate status codes in your responses.
 
 Good luck!"#,
   clients: [
