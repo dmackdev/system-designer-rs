@@ -73,7 +73,7 @@ fn main_menu_ui(
 
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.heading("System Architect");
+            ui.heading("System Designer");
 
             if ui.button("Level Select").clicked() {
                 app_state.set(AppState::LevelSelect);

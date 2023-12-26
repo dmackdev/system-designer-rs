@@ -45,7 +45,7 @@ fn main() {
     let default = DefaultPlugins
         .set(WindowPlugin {
             primary_window: Some(Window {
-                title: String::from("System Architect"),
+                title: String::from("System Designer"),
                 canvas: Some("#bevy-canvas".to_string()),
                 ..Default::default()
             }),
