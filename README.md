@@ -92,7 +92,7 @@ type Response = {
   data: Value;
 };
 
-type Document = Map<string, JSON>;
+type Document = Map<string, Value>;
 ```
 
 Note that the value `undefined` is not supported as a value to pass between system components, but it is safe to use within a request handler function itself.
@@ -148,9 +148,7 @@ const res = yield http.get("server-1.com", "/users/1");
 
 A function to construct a response from the endpoint handler.
 
-#### Methods:
-
-- `function* response(status: number, body: Value): Response`
+- `function response(status: number, body: Value): Response`
 
 #### Example Usage:
 
